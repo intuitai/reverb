@@ -1,0 +1,31 @@
+services:
+  reverb:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  test-runner:
+    build:
+      context: ..
+      dockerfile: Dockerfile.test
+    depends_on:
+      reverb:
+        condition: service_healthy
+    environment:
+      REVERB_TEST_HTTP_ADDR: "http://reverb:8080"
+    working_dir: /app
+    command: >
+      sh -c "
+        echo '=== Unit tests ===' &&
+        go test -race -count=1 -timeout 120s ./pkg/... ./internal/... &&
+        echo '=== Integration tests ===' &&
+        go test -count=1 -timeout 300s -tags integration ./test/integration/...
+      "

@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build
+        run: go build -o bin/reverb ./cmd/reverb
+      - name: Vet
+        run: go vet ./...
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Run unit tests with race detector
+        run: go test -race -count=1 -timeout 120s ./pkg/... ./internal/...
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Run tests with coverage
+        run: go test -coverprofile=coverage.out -covermode=atomic -timeout 120s ./pkg/... ./internal/...
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.out
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build Docker image
+        run: docker build -t reverb:latest .
+      - name: Start Reverb server
+        run: |
+          docker run --rm -d --name reverb-ci -p 8080:8080 reverb:latest
+          for i in $(seq 1 15); do
+            if curl -sf http://localhost:8080/healthz > /dev/null 2>&1; then
+              echo "Server is healthy"
+              break
+            fi
+            echo "Waiting for server... ($i)"
+            sleep 1
+          done
+      - name: Run integration tests
+        run: |
+          REVERB_TEST_HTTP_ADDR=http://localhost:8080 \
+          go test -count=1 -timeout 60s -tags integration ./test/integration/...
+      - name: Stop server
+        if: always()
+        run: docker stop reverb-ci || true

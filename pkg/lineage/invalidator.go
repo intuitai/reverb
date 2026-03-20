@@ -1,0 +1,141 @@
+package lineage
+
+import (
+	"context"
+	"log/slog"
+	"sync"
+	"time"
+
+	"github.com/org/reverb/pkg/store"
+	"github.com/org/reverb/pkg/vector"
+)
+
+// ChangeEvent represents a source document that has changed.
+type ChangeEvent struct {
+	SourceID    string
+	ContentHash [32]byte // zero value means deleted
+	Timestamp   time.Time
+}
+
+// Invalidator processes source change events and invalidates cache entries.
+type Invalidator struct {
+	store       store.Store
+	vectorIndex vector.Index
+	index       *Index
+	logger      *slog.Logger
+
+	mu      sync.Mutex
+	pending []string // accumulated entry IDs to delete
+}
+
+// NewInvalidator creates a new invalidation engine.
+func NewInvalidator(s store.Store, vi vector.Index, idx *Index, logger *slog.Logger) *Invalidator {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return &Invalidator{
+		store:       s,
+		vectorIndex: vi,
+		index:       idx,
+		logger:      logger,
+	}
+}
+
+// ProcessEvent handles a single change event, invalidating affected cache entries.
+// Returns the number of entries invalidated.
+func (inv *Invalidator) ProcessEvent(ctx context.Context, event ChangeEvent) (int, error) {
+	entryIDs, err := inv.index.EntriesForSource(ctx, event.SourceID)
+	if err != nil {
+		return 0, err
+	}
+
+	var toDelete []string
+	isDeleted := event.ContentHash == [32]byte{} // zero hash means source deleted
+
+	for _, id := range entryIDs {
+		entry, err := inv.store.Get(ctx, id)
+		if err != nil {
+			inv.logger.Error("failed to load entry for invalidation",
+				"entry_id", id, "error", err)
+			continue
+		}
+		if entry == nil {
+			continue
+		}
+
+		shouldInvalidate := isDeleted
+		if !shouldInvalidate {
+			for _, src := range entry.SourceHashes {
+				if src.SourceID == event.SourceID && src.ContentHash != event.ContentHash {
+					shouldInvalidate = true
+					break
+				}
+			}
+		}
+
+		if shouldInvalidate {
+			toDelete = append(toDelete, id)
+		}
+	}
+
+	if len(toDelete) == 0 {
+		return 0, nil
+	}
+
+	// Delete from vector index
+	for _, id := range toDelete {
+		if err := inv.vectorIndex.Delete(ctx, id); err != nil {
+			inv.logger.Error("failed to delete vector", "entry_id", id, "error", err)
+		}
+	}
+
+	// Delete from store in batch
+	if err := inv.store.DeleteBatch(ctx, toDelete); err != nil {
+		return 0, err
+	}
+
+	inv.logger.Info("invalidated entries",
+		"source_id", event.SourceID,
+		"count", len(toDelete))
+
+	return len(toDelete), nil
+}
+
+// Run starts the invalidation loop, reading events from the channel until ctx is canceled.
+func (inv *Invalidator) Run(ctx context.Context, events <-chan ChangeEvent) {
+	batchSize := 100
+	flushInterval := 500 * time.Millisecond
+	ticker := time.NewTicker(flushInterval)
+	defer ticker.Stop()
+
+	var pending []ChangeEvent
+
+	for {
+		select {
+		case <-ctx.Done():
+			// Process remaining events
+			for _, e := range pending {
+				inv.ProcessEvent(context.Background(), e)
+			}
+			return
+		case event, ok := <-events:
+			if !ok {
+				return
+			}
+			pending = append(pending, event)
+			if len(pending) >= batchSize {
+				for _, e := range pending {
+					inv.ProcessEvent(ctx, e)
+				}
+				pending = pending[:0]
+			}
+		case <-ticker.C:
+			if len(pending) > 0 {
+				for _, e := range pending {
+					inv.ProcessEvent(ctx, e)
+				}
+				pending = pending[:0]
+			}
+		}
+	}
+}
