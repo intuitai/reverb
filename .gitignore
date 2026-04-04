@@ -30,6 +30,9 @@ go.work.sum
 # omc file
 .omc/
 
+# bin
+bin/
+
 # Editor/IDE
  .idea/
  .vscode/
