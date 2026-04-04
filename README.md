@@ -1,5 +1,9 @@
 # Reverb
 
+[![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?style=flat&logo=go)](https://golang.org)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/org/reverb/ci.yml?branch=main&label=build)](https://github.com/org/reverb/actions)
+[![Coverage](https://img.shields.io/codecov/c/github/org/reverb?label=coverage)](https://codecov.io/gh/org/reverb)
+
 **Semantic Response Cache with Knowledge-Aware Invalidation**
 
 Reverb is a Go library and standalone HTTP service that provides a two-tier semantic response cache for LLM-powered applications. It reduces redundant LLM calls by caching both exact and semantically similar queries, and automatically invalidates cached entries when the underlying knowledge base changes.
@@ -25,10 +29,10 @@ reverb.Store(req, resp, sources)
 
 - **Two-tier cache** — Exact match (SHA-256 hash, sub-millisecond) and semantic similarity (embedding cosine, ~50ms)
 - **Knowledge-aware invalidation** — Tracks which source documents contributed to each cached response; automatically invalidates when sources change
-- **CDC listeners** — Webhook and polling-based change-data-capture for source document updates
+- **CDC listeners** — Webhook, polling, and NATS-based change-data-capture for source document updates
 - **Namespace isolation** — Logical partitions for multi-tenant or multi-use-case deployments
-- **Pluggable backends** — Interfaces for embedding providers, vector indices, and persistence stores
-- **Standalone HTTP server** — REST API for language-agnostic integration
+- **Pluggable backends** — Interfaces for embedding providers, vector indices, and persistence stores (memory, Redis, BadgerDB)
+- **Standalone HTTP & gRPC servers** — REST and gRPC APIs for language-agnostic integration
 - **Minimal dependencies** — No infrastructure required; core library runs with in-memory store and flat vector index
 
 ## Quick Start
@@ -134,6 +138,18 @@ curl -X POST http://localhost:8080/v1/invalidate \
   -d '{"source_id": "doc:password-guide"}'
 ```
 
+## gRPC API
+
+The `reverb.v1.ReverbService` exposes the same operations over gRPC (see `pkg/server/proto/reverb.proto`):
+
+| RPC | Description |
+|---|---|
+| `Lookup` | Check cache for a matching response |
+| `Store` | Store a new cache entry |
+| `Invalidate` | Invalidate entries by source ID |
+| `DeleteEntry` | Delete a single cache entry |
+| `GetStats` | Cache statistics |
+
 ## Architecture
 
 ### Package Structure
@@ -154,15 +170,19 @@ reverb/
 │   ├── lineage/             # Source lineage tracking + invalidation engine
 │   ├── cdc/                 # Change-data-capture listener interface
 │   │   ├── webhook/         # HTTP webhook CDC listener
-│   │   └── polling/         # Polling-based CDC listener
+│   │   ├── polling/         # Polling-based CDC listener
+│   │   └── nats/            # NATS JetStream CDC listener
 │   ├── store/               # Persistence store interface
 │   │   ├── memory/          # In-memory store (dev/test)
+│   │   ├── redis/           # Redis-backed store
+│   │   ├── badger/          # BadgerDB embedded store
 │   │   └── conformance/     # Shared conformance test suite
 │   ├── vector/              # Vector index interface
 │   │   ├── flat/            # Brute-force O(n) index (up to ~50K entries)
 │   │   ├── hnsw/            # HNSW O(log n) index (up to ~10M entries)
 │   │   └── conformance/     # Shared conformance test suite
-│   ├── server/              # HTTP REST API server
+│   ├── server/              # HTTP REST and gRPC API servers
+│   │   └── proto/           # Protobuf service definitions
 │   └── metrics/             # Metrics collector + tracing stubs
 ├── internal/
 │   ├── hashutil/            # SHA-256 hashing helpers
@@ -181,8 +201,8 @@ All backends are pluggable via interfaces:
 
 - **`embedding.Provider`** — Generate embedding vectors from text (OpenAI, Ollama, fake)
 - **`vector.Index`** — Approximate nearest neighbor search (flat, HNSW)
-- **`store.Store`** — Durable persistence for cache entries (memory)
-- **`cdc.Listener`** — Watch for source document changes (webhook, polling)
+- **`store.Store`** — Durable persistence for cache entries (memory, Redis, BadgerDB)
+- **`cdc.Listener`** — Watch for source document changes (webhook, polling, NATS)
 
 ### Lookup Flow
 
@@ -236,10 +256,10 @@ make bench
 
 | Category | Count | Description |
 |---|---|---|
-| Unit tests | 155 | All packages, race-free |
+| Unit tests | 239 | All packages, race-free |
 | Integration tests | 11 | Full HTTP API end-to-end |
 | Conformance suites | 2 | Store + VectorIndex shared suites |
-| Test packages | 14 | With tests |
+| Test packages | 19 | With tests |
 
 ## Configuration
 
@@ -262,6 +282,13 @@ reverb.Config{
 |---|---|
 | `golang.org/x/text` | Unicode NFC normalization |
 | `github.com/google/uuid` | UUID generation for entry IDs |
+| `github.com/redis/go-redis/v9` | Redis store backend |
+| `github.com/dgraph-io/badger/v4` | BadgerDB embedded store backend |
+| `github.com/nats-io/nats.go` | NATS JetStream CDC listener |
+| `google.golang.org/grpc` | gRPC server transport |
+| `google.golang.org/protobuf` | Protocol Buffers serialization |
+| `github.com/prometheus/client_golang` | Prometheus metrics |
+| `go.opentelemetry.io/otel` | OpenTelemetry tracing |
 | `github.com/stretchr/testify` | Test assertions (dev only) |
 
 ## License
