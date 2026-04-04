@@ -101,14 +101,20 @@
     },
     {
       "path": "pkg/store/redis/redis.go",
-      "accessCount": 15,
-      "lastAccessed": 1775267610659,
+      "accessCount": 16,
+      "lastAccessed": 1775269851022,
       "type": "file"
     },
     {
       "path": "pkg/reverb/client.go",
-      "accessCount": 14,
-      "lastAccessed": 1775267783158,
+      "accessCount": 15,
+      "lastAccessed": 1775269771973,
+      "type": "file"
+    },
+    {
+      "path": "README.md",
+      "accessCount": 15,
+      "lastAccessed": 1775272257795,
       "type": "file"
     },
     {
@@ -119,14 +125,26 @@
     },
     {
       "path": "pkg/cdc/nats/nats.go",
+      "accessCount": 10,
+      "lastAccessed": 1775269845044,
+      "type": "file"
+    },
+    {
+      "path": "pkg/server/grpc.go",
       "accessCount": 9,
-      "lastAccessed": 1775267785459,
+      "lastAccessed": 1775272236116,
       "type": "file"
     },
     {
       "path": "pkg/store/store.go",
-      "accessCount": 7,
-      "lastAccessed": 1775267494561,
+      "accessCount": 8,
+      "lastAccessed": 1775269783182,
+      "type": "file"
+    },
+    {
+      "path": "pkg/server/http.go",
+      "accessCount": 8,
+      "lastAccessed": 1775269939924,
       "type": "file"
     },
     {
@@ -142,15 +160,15 @@
       "type": "file"
     },
     {
-      "path": "pkg/server/http.go",
+      "path": "go.mod",
       "accessCount": 6,
-      "lastAccessed": 1775266976339,
+      "lastAccessed": 1775269863563,
       "type": "file"
     },
     {
-      "path": "pkg/server/grpc.go",
-      "accessCount": 5,
-      "lastAccessed": 1775266975612,
+      "path": "pkg/reverb/config.go",
+      "accessCount": 6,
+      "lastAccessed": 1775269939149,
       "type": "file"
     },
     {
@@ -160,16 +178,16 @@
       "type": "file"
     },
     {
-      "path": "go.mod",
-      "accessCount": 4,
-      "lastAccessed": 1775265536773,
+      "path": "pkg/cdc/listener.go",
+      "accessCount": 5,
+      "lastAccessed": 1775269800713,
       "type": "file"
     },
     {
-      "path": "pkg/cdc/listener.go",
-      "accessCount": 4,
-      "lastAccessed": 1775266967956,
-      "type": "file"
+      "path": "",
+      "accessCount": 5,
+      "lastAccessed": 1775269812491,
+      "type": "directory"
     },
     {
       "path": "pkg/metrics/metrics.go",
@@ -184,21 +202,9 @@
       "type": "file"
     },
     {
-      "path": "",
-      "accessCount": 4,
-      "lastAccessed": 1775267037308,
-      "type": "directory"
-    },
-    {
       "path": "pkg/embedding/provider.go",
-      "accessCount": 3,
-      "lastAccessed": 1775266967469,
-      "type": "file"
-    },
-    {
-      "path": "pkg/reverb/config.go",
-      "accessCount": 3,
-      "lastAccessed": 1775266997168,
+      "accessCount": 4,
+      "lastAccessed": 1775269789162,
       "type": "file"
     },
     {
@@ -211,6 +217,30 @@
       "path": "pkg/embedding/ollama/ollama_test.go",
       "accessCount": 3,
       "lastAccessed": 1775267514389,
+      "type": "file"
+    },
+    {
+      "path": "pkg/reverb/options.go",
+      "accessCount": 3,
+      "lastAccessed": 1775269779522,
+      "type": "file"
+    },
+    {
+      "path": "pkg/vector/index.go",
+      "accessCount": 3,
+      "lastAccessed": 1775269794622,
+      "type": "file"
+    },
+    {
+      "path": "pkg/lineage/invalidator.go",
+      "accessCount": 3,
+      "lastAccessed": 1775269832056,
+      "type": "file"
+    },
+    {
+      "path": "pkg/store/badger/badger.go",
+      "accessCount": 3,
+      "lastAccessed": 1775269857688,
       "type": "file"
     },
     {
@@ -238,12 +268,6 @@
       "type": "file"
     },
     {
-      "path": "pkg/store/badger/badger.go",
-      "accessCount": 2,
-      "lastAccessed": 1775266968375,
-      "type": "file"
-    },
-    {
       "path": "pkg/store/badger/badger_test.go",
       "accessCount": 2,
       "lastAccessed": 1775266968887,
@@ -256,12 +280,6 @@
       "type": "file"
     },
     {
-      "path": "pkg/reverb/options.go",
-      "accessCount": 2,
-      "lastAccessed": 1775266981344,
-      "type": "file"
-    },
-    {
       "path": "pkg/metrics/metrics_test.go",
       "accessCount": 2,
       "lastAccessed": 1775266982328,
@@ -271,12 +289,6 @@
       "path": "pkg/metrics/tracing_test.go",
       "accessCount": 2,
       "lastAccessed": 1775266983256,
-      "type": "file"
-    },
-    {
-      "path": "pkg/vector/index.go",
-      "accessCount": 2,
-      "lastAccessed": 1775266997896,
       "type": "file"
     },
     {
@@ -295,12 +307,6 @@
       "path": "pkg/store/memory/memory.go",
       "accessCount": 1,
       "lastAccessed": 1775265480642,
-      "type": "file"
-    },
-    {
-      "path": "pkg/lineage/invalidator.go",
-      "accessCount": 1,
-      "lastAccessed": 1775265532086,
       "type": "file"
     },
     {
@@ -362,6 +368,30 @@
       "accessCount": 1,
       "lastAccessed": 1775267511555,
       "type": "directory"
+    },
+    {
+      "path": "Makefile",
+      "accessCount": 1,
+      "lastAccessed": 1775269793764,
+      "type": "file"
+    },
+    {
+      "path": "pkg/server",
+      "accessCount": 1,
+      "lastAccessed": 1775269800658,
+      "type": "directory"
+    },
+    {
+      "path": "pkg/normalize/normalize.go",
+      "accessCount": 1,
+      "lastAccessed": 1775269806938,
+      "type": "file"
+    },
+    {
+      "path": "pkg/cache/exact/exact.go",
+      "accessCount": 1,
+      "lastAccessed": 1775269811642,
+      "type": "file"
     }
   ],
   "userDirectives": []

@@ -27,6 +27,9 @@ go.work.sum
 # env file
 .env
 
+# omc file
+.omc/
+
 # Editor/IDE
-# .idea/
-# .vscode/
+ .idea/
+ .vscode/
