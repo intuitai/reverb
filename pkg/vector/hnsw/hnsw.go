@@ -3,6 +3,7 @@ package hnsw
 import (
 	"container/heap"
 	"context"
+	"fmt"
 	"math"
 	"math/rand"
 	"sort"
@@ -383,7 +384,42 @@ func (idx *Index) pruneConnections(nd *node, layer int, maxConn int) {
 		newFriends[scored[i].id] = struct{}{}
 	}
 
+	// Remove reverse edges from dropped neighbors to prevent dangling one-directional edges.
+	for fID := range friends {
+		if _, kept := newFriends[fID]; !kept {
+			if friend, exists := idx.nodes[fID]; exists && layer < len(friend.friends) {
+				delete(friend.friends[layer], nd.id)
+			}
+		}
+	}
+
 	nd.friends[layer] = newFriends
+}
+
+// CheckBidirectional verifies that all edges in the graph are bidirectional.
+// Returns an error describing the first violation found, or nil if the graph is consistent.
+// This is exported for use in tests.
+func (idx *Index) CheckBidirectional() error {
+	idx.mu.RLock()
+	defer idx.mu.RUnlock()
+
+	for id, nd := range idx.nodes {
+		for lc, friends := range nd.friends {
+			for fID := range friends {
+				friend, exists := idx.nodes[fID]
+				if !exists {
+					return fmt.Errorf("node %q at layer %d has friend %q which does not exist in the index", id, lc, fID)
+				}
+				if lc >= len(friend.friends) {
+					return fmt.Errorf("node %q at layer %d has friend %q whose friends slice has length %d", id, lc, fID, len(friend.friends))
+				}
+				if _, back := friend.friends[lc][id]; !back {
+					return fmt.Errorf("edge %q→%q at layer %d exists but reverse edge %q→%q does not", id, fID, lc, fID, id)
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // cosineSimilarity computes the cosine similarity between two vectors.

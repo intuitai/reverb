@@ -397,8 +397,20 @@ func (c *Client) Store(ctx context.Context, req StoreRequest) (*CacheEntry, erro
 		emb = embResult
 	}
 
+	// Check for an existing entry with the same hash to avoid duplicate cache entries.
+	entryID := uuid.New().String()
+	var oldVectorID string
+	if existing, err := c.store.GetByHash(ctx, ns, hash); err == nil && existing != nil {
+		// Reuse the existing ID so the store overwrites in place.
+		entryID = existing.ID
+		// Track old vector ID for removal from the index before re-adding.
+		if !existing.EmbeddingMissing {
+			oldVectorID = existing.ID
+		}
+	}
+
 	entry := &CacheEntry{
-		ID:               uuid.New().String(),
+		ID:               entryID,
 		CreatedAt:        now,
 		ExpiresAt:        expiresAt,
 		PromptHash:       hash,
@@ -420,6 +432,12 @@ func (c *Client) Store(ctx context.Context, req StoreRequest) (*CacheEntry, erro
 
 	// Add to vector index if embedding succeeded
 	if !embeddingMissing {
+		// Remove stale vector from index before inserting the updated one.
+		if oldVectorID != "" {
+			if err := c.vectorIndex.Delete(ctx, oldVectorID); err != nil {
+				c.logger.Error("failed to delete old vector from index", "error", err)
+			}
+		}
 		if err := c.vectorIndex.Add(ctx, entry.ID, emb); err != nil {
 			c.logger.Error("failed to add vector to index", "error", err)
 		}

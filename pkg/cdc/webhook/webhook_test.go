@@ -116,6 +116,37 @@ func TestWebhook_Shutdown(t *testing.T) {
 	}
 }
 
+func TestWebhook_ShortContentHash(t *testing.T) {
+	handler, _ := newTestHandler("")
+
+	// "abcdef" is valid hex but only 3 bytes (6 hex chars), not 32 bytes.
+	body := `{"source_id":"doc:short-hash","content_hash":"abcdef"}`
+	req := httptest.NewRequest(http.MethodPost, "/hooks/source-changed", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "must be exactly 64 hex characters")
+}
+
+func TestWebhook_LongContentHash(t *testing.T) {
+	handler, _ := newTestHandler("")
+
+	// 66 hex chars = 33 bytes, one too many.
+	longHash := "aabbccdd00112233445566778899aabbccddeeff00112233445566778899aabbcc"
+	body := `{"source_id":"doc:long-hash","content_hash":"` + longHash + `"}`
+	req := httptest.NewRequest(http.MethodPost, "/hooks/source-changed", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "must be exactly 64 hex characters")
+}
+
 func TestWebhook_AuthToken(t *testing.T) {
 	handler, events := newTestHandler("secret-token")
 

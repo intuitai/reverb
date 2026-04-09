@@ -123,9 +123,11 @@ func (l *Listener) handler(events chan<- cdc.ChangeEvent) http.HandlerFunc {
 				http.Error(w, "invalid content_hash: "+err.Error(), http.StatusBadRequest)
 				return
 			}
-			if len(decoded) == 32 {
-				copy(event.ContentHash[:], decoded)
+			if len(decoded) != 32 {
+				http.Error(w, "invalid content_hash: must be exactly 64 hex characters (32 bytes)", http.StatusBadRequest)
+				return
 			}
+			copy(event.ContentHash[:], decoded)
 		}
 
 		// Parse timestamp if provided, otherwise use current time.

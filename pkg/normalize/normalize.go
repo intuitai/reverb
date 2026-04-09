@@ -24,8 +24,15 @@ func Normalize(s string) string {
 	// 4. Trim
 	s = strings.TrimSpace(s)
 
-	// 5. Strip trailing sentence-ending punctuation
-	s = strings.TrimRight(s, ".?!;")
+	// 5. Strip trailing sentence-ending punctuation and any surrounding spaces,
+	//    repeating until stable (handles cases like "hello !" or "end . ! ;").
+	for {
+		t := strings.TrimSpace(strings.TrimRight(strings.TrimSpace(s), ".?!;"))
+		if t == s {
+			break
+		}
+		s = t
+	}
 
 	return s
 }

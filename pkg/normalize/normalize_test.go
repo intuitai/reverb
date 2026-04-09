@@ -67,6 +67,26 @@ func TestNormalize(t *testing.T) {
 			input:    "  hello  ",
 			expected: "hello",
 		},
+		{
+			name:     "TrailingSpaceBeforePunctuation",
+			input:    "hello !",
+			expected: "hello",
+		},
+		{
+			name:     "SpaceBeforePunctuation2",
+			input:    "what is this ?",
+			expected: "what is this",
+		},
+		{
+			name:     "TrailingSpacesAfterPunctuation",
+			input:    "test .  ",
+			expected: "test",
+		},
+		{
+			name:     "MultipleSpacesAndPunctuation",
+			input:    "end . ! ;",
+			expected: "end",
+		},
 	}
 
 	for _, tt := range tests {

@@ -104,9 +104,13 @@ func decodeMessage(data []byte) (cdc.ChangeEvent, error) {
 
 	if p.ContentHash != "" {
 		decoded, err := hex.DecodeString(p.ContentHash)
-		if err == nil && len(decoded) == 32 {
-			copy(event.ContentHash[:], decoded)
+		if err != nil {
+			return cdc.ChangeEvent{}, fmt.Errorf("nats: invalid content_hash hex: %w", err)
 		}
+		if len(decoded) != 32 {
+			return cdc.ChangeEvent{}, fmt.Errorf("nats: invalid content_hash: must be exactly 64 hex characters (32 bytes), got %d", len(p.ContentHash))
+		}
+		copy(event.ContentHash[:], decoded)
 	}
 
 	if p.Timestamp != "" {

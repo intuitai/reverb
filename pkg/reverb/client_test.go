@@ -369,6 +369,60 @@ func TestClient_Close(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestClient_Store_Upsert(t *testing.T) {
+	s := memory.New()
+	vi := flat.New()
+	embedder := fake.New(dims)
+	clock := testutil.NewFakeClock(time.Now())
+	cfg := reverb.Config{
+		DefaultNamespace:    "default",
+		DefaultTTL:          24 * time.Hour,
+		SimilarityThreshold: 0.95,
+		SemanticTopK:        5,
+		ScopeByModel:        true,
+		Clock:               clock,
+	}
+	c, err := reverb.New(cfg, embedder, s, vi)
+	require.NoError(t, err)
+	defer c.Close()
+	ctx := context.Background()
+
+	// Store the same prompt twice with different responses.
+	_, err = c.Store(ctx, reverb.StoreRequest{
+		Namespace: "ns",
+		Prompt:    "What is the capital of France?",
+		ModelID:   "gpt-4",
+		Response:  "Paris is the capital of France.",
+	})
+	require.NoError(t, err)
+
+	_, err = c.Store(ctx, reverb.StoreRequest{
+		Namespace: "ns",
+		Prompt:    "What is the capital of France?",
+		ModelID:   "gpt-4",
+		Response:  "Paris.",
+	})
+	require.NoError(t, err)
+
+	// TotalEntries should be 1 (upsert, not a new entry).
+	stats, err := c.Stats(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), stats.TotalEntries, "re-storing the same prompt should upsert, not create a duplicate")
+
+	// The response should be updated to the latest value.
+	resp, err := c.Lookup(ctx, reverb.LookupRequest{
+		Namespace: "ns",
+		Prompt:    "What is the capital of France?",
+		ModelID:   "gpt-4",
+	})
+	require.NoError(t, err)
+	require.True(t, resp.Hit)
+	assert.Equal(t, "Paris.", resp.Entry.ResponseText, "response should reflect the latest store")
+
+	// The vector index should have exactly 1 entry (no stale duplicates).
+	assert.Equal(t, 1, vi.Len(), "vector index should have exactly 1 entry after upsert")
+}
+
 func TestClient_ConcurrentLookupAndStore(t *testing.T) {
 	c, _ := newTestClient(t, nil)
 	defer c.Close()

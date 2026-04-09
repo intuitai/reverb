@@ -103,57 +103,111 @@
   },
   "hotPaths": [
     {
+      "path": "pkg/reverb/client.go",
+      "accessCount": 11,
+      "lastAccessed": 1775756479211,
+      "type": "file"
+    },
+    {
+      "path": "pkg/reverb/client_test.go",
+      "accessCount": 9,
+      "lastAccessed": 1775756512724,
+      "type": "file"
+    },
+    {
+      "path": "pkg/vector/hnsw/hnsw.go",
+      "accessCount": 7,
+      "lastAccessed": 1775756406605,
+      "type": "file"
+    },
+    {
+      "path": "pkg/normalize/normalize.go",
+      "accessCount": 7,
+      "lastAccessed": 1775756435562,
+      "type": "file"
+    },
+    {
+      "path": "pkg/store/store.go",
+      "accessCount": 7,
+      "lastAccessed": 1775756463528,
+      "type": "file"
+    },
+    {
+      "path": "README.md",
+      "accessCount": 6,
+      "lastAccessed": 1775753256422,
+      "type": "file"
+    },
+    {
+      "path": "Dockerfile",
+      "accessCount": 6,
+      "lastAccessed": 1775753265563,
+      "type": "file"
+    },
+    {
+      "path": "pkg/store/memory/memory.go",
+      "accessCount": 6,
+      "lastAccessed": 1775756238641,
+      "type": "file"
+    },
+    {
       "path": "examples/basic/main.go",
       "accessCount": 5,
       "lastAccessed": 1775752415632,
       "type": "file"
     },
     {
-      "path": "Dockerfile",
+      "path": "pkg/cdc/webhook/webhook.go",
       "accessCount": 5,
-      "lastAccessed": 1775752417517,
+      "lastAccessed": 1775756401882,
       "type": "file"
     },
     {
-      "path": "README.md",
+      "path": "",
       "accessCount": 5,
-      "lastAccessed": 1775752931740,
+      "lastAccessed": 1775756456310,
+      "type": "directory"
+    },
+    {
+      "path": "pkg/cdc/nats/nats.go",
+      "accessCount": 5,
+      "lastAccessed": 1775756515403,
       "type": "file"
     },
     {
-      "path": "pkg/reverb/client.go",
-      "accessCount": 4,
-      "lastAccessed": 1775752299668,
+      "path": "improvements.md",
+      "accessCount": 5,
+      "lastAccessed": 1775757727637,
       "type": "file"
     },
     {
       "path": "go.mod",
-      "accessCount": 3,
-      "lastAccessed": 1775752293889,
+      "accessCount": 4,
+      "lastAccessed": 1775753256270,
       "type": "file"
     },
     {
       "path": "pkg/reverb/config.go",
-      "accessCount": 3,
-      "lastAccessed": 1775752299522,
-      "type": "file"
-    },
-    {
-      "path": "pkg/store/memory/memory.go",
-      "accessCount": 3,
-      "lastAccessed": 1775752306336,
+      "accessCount": 4,
+      "lastAccessed": 1775753261997,
       "type": "file"
     },
     {
       "path": "pkg/vector/flat/flat.go",
-      "accessCount": 3,
-      "lastAccessed": 1775752306752,
+      "accessCount": 4,
+      "lastAccessed": 1775753276328,
       "type": "file"
     },
     {
-      "path": "pkg/store/store.go",
-      "accessCount": 3,
-      "lastAccessed": 1775752314327,
+      "path": "pkg/lineage/invalidator.go",
+      "accessCount": 4,
+      "lastAccessed": 1775756233743,
+      "type": "file"
+    },
+    {
+      "path": "pkg/vector/hnsw/hnsw_test.go",
+      "accessCount": 4,
+      "lastAccessed": 1775756436713,
       "type": "file"
     },
     {
@@ -163,15 +217,39 @@
       "type": "file"
     },
     {
-      "path": "test/docker-compose.yml",
-      "accessCount": 2,
-      "lastAccessed": 1775752168580,
+      "path": "cmd/reverb/main.go",
+      "accessCount": 3,
+      "lastAccessed": 1775753265372,
       "type": "file"
     },
     {
-      "path": "cmd/reverb/main.go",
+      "path": "pkg/store/redis/redis.go",
+      "accessCount": 3,
+      "lastAccessed": 1775756155704,
+      "type": "file"
+    },
+    {
+      "path": "pkg/store/badger/badger.go",
+      "accessCount": 3,
+      "lastAccessed": 1775756156543,
+      "type": "file"
+    },
+    {
+      "path": "pkg/cdc/listener.go",
+      "accessCount": 3,
+      "lastAccessed": 1775756260394,
+      "type": "file"
+    },
+    {
+      "path": "pkg/vector/index.go",
+      "accessCount": 3,
+      "lastAccessed": 1775756465620,
+      "type": "file"
+    },
+    {
+      "path": "test/docker-compose.yml",
       "accessCount": 2,
-      "lastAccessed": 1775752173925,
+      "lastAccessed": 1775752168580,
       "type": "file"
     },
     {
@@ -211,15 +289,45 @@
       "type": "file"
     },
     {
-      "path": "pkg/embedding/provider.go",
-      "accessCount": 1,
-      "lastAccessed": 1775751258032,
+      "path": "Makefile",
+      "accessCount": 2,
+      "lastAccessed": 1775753256601,
       "type": "file"
     },
     {
-      "path": "pkg/vector/index.go",
+      "path": "pkg/reverb/options.go",
+      "accessCount": 2,
+      "lastAccessed": 1775753262483,
+      "type": "file"
+    },
+    {
+      "path": "pkg/cache/exact/exact.go",
+      "accessCount": 2,
+      "lastAccessed": 1775753263529,
+      "type": "file"
+    },
+    {
+      "path": "pkg/cache/semantic/semantic.go",
+      "accessCount": 2,
+      "lastAccessed": 1775753264040,
+      "type": "file"
+    },
+    {
+      "path": "pkg/server/http.go",
+      "accessCount": 2,
+      "lastAccessed": 1775753273667,
+      "type": "file"
+    },
+    {
+      "path": "pkg/lineage/index.go",
+      "accessCount": 2,
+      "lastAccessed": 1775753277452,
+      "type": "file"
+    },
+    {
+      "path": "pkg/embedding/provider.go",
       "accessCount": 1,
-      "lastAccessed": 1775751258576,
+      "lastAccessed": 1775751258032,
       "type": "file"
     },
     {
@@ -229,63 +337,9 @@
       "type": "file"
     },
     {
-      "path": "pkg/server/http.go",
-      "accessCount": 1,
-      "lastAccessed": 1775751260405,
-      "type": "file"
-    },
-    {
-      "path": "pkg/cache/exact/exact.go",
-      "accessCount": 1,
-      "lastAccessed": 1775751262867,
-      "type": "file"
-    },
-    {
-      "path": "pkg/cache/semantic/semantic.go",
-      "accessCount": 1,
-      "lastAccessed": 1775751263236,
-      "type": "file"
-    },
-    {
-      "path": "pkg/lineage/invalidator.go",
-      "accessCount": 1,
-      "lastAccessed": 1775751263280,
-      "type": "file"
-    },
-    {
-      "path": "pkg/normalize/normalize.go",
-      "accessCount": 1,
-      "lastAccessed": 1775751263312,
-      "type": "file"
-    },
-    {
       "path": "test/integration/http_test.go",
       "accessCount": 1,
       "lastAccessed": 1775751268841,
-      "type": "file"
-    },
-    {
-      "path": "pkg/cdc/listener.go",
-      "accessCount": 1,
-      "lastAccessed": 1775751268885,
-      "type": "file"
-    },
-    {
-      "path": "pkg/cdc/webhook/webhook.go",
-      "accessCount": 1,
-      "lastAccessed": 1775751269537,
-      "type": "file"
-    },
-    {
-      "path": "pkg/lineage/index.go",
-      "accessCount": 1,
-      "lastAccessed": 1775751271261,
-      "type": "file"
-    },
-    {
-      "path": "pkg/reverb/options.go",
-      "accessCount": 1,
-      "lastAccessed": 1775751273626,
       "type": "file"
     },
     {
@@ -295,33 +349,9 @@
       "type": "file"
     },
     {
-      "path": "pkg/vector/hnsw/hnsw.go",
-      "accessCount": 1,
-      "lastAccessed": 1775751279852,
-      "type": "file"
-    },
-    {
-      "path": "pkg/store/redis/redis.go",
-      "accessCount": 1,
-      "lastAccessed": 1775751280221,
-      "type": "file"
-    },
-    {
-      "path": "pkg/store/badger/badger.go",
-      "accessCount": 1,
-      "lastAccessed": 1775751282197,
-      "type": "file"
-    },
-    {
       "path": "pkg/cdc/polling/polling.go",
       "accessCount": 1,
       "lastAccessed": 1775751282489,
-      "type": "file"
-    },
-    {
-      "path": "Makefile",
-      "accessCount": 1,
-      "lastAccessed": 1775752167692,
       "type": "file"
     },
     {
@@ -343,12 +373,6 @@
       "type": "directory"
     },
     {
-      "path": "",
-      "accessCount": 1,
-      "lastAccessed": 1775752282089,
-      "type": "directory"
-    },
-    {
       "path": "examples/basic",
       "accessCount": 1,
       "lastAccessed": 1775752314655,
@@ -358,6 +382,24 @@
       "path": "examples/semantic-cache/docker-compose.yml",
       "accessCount": 1,
       "lastAccessed": 1775752370461,
+      "type": "file"
+    },
+    {
+      "path": "pkg/cache/tier.go",
+      "accessCount": 1,
+      "lastAccessed": 1775753262945,
+      "type": "file"
+    },
+    {
+      "path": "pkg/server/grpc.go",
+      "accessCount": 1,
+      "lastAccessed": 1775753274100,
+      "type": "file"
+    },
+    {
+      "path": "pkg/store/memory/memory_test.go",
+      "accessCount": 1,
+      "lastAccessed": 1775756162181,
       "type": "file"
     }
   ],

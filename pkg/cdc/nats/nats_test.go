@@ -109,9 +109,32 @@ func TestDecodeMessage_InvalidContentHash(t *testing.T) {
 		ContentHash: "not-hex",
 	}
 	data, _ := json.Marshal(payload)
-	event, err := decodeMessage(data)
-	require.NoError(t, err)
-	assert.Equal(t, "not-hex", event.ContentHashHex)
-	// ContentHash stays zero-value since hex decode failed
-	assert.Equal(t, [32]byte{}, event.ContentHash)
+	_, err := decodeMessage(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid content_hash hex")
+}
+
+func TestDecodeMessage_ShortContentHash(t *testing.T) {
+	// "abcdef" is valid hex but only 3 bytes, not 32.
+	payload := natsPayload{
+		SourceID:    "src-1",
+		ContentHash: "abcdef",
+	}
+	data, _ := json.Marshal(payload)
+	_, err := decodeMessage(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must be exactly 64 hex characters")
+}
+
+func TestDecodeMessage_LongContentHash(t *testing.T) {
+	// 66 hex chars = 33 bytes, one too many.
+	longHash := "aabbccdd00112233445566778899aabbccddeeff00112233445566778899aabbcc"
+	payload := natsPayload{
+		SourceID:    "src-1",
+		ContentHash: longHash,
+	}
+	data, _ := json.Marshal(payload)
+	_, err := decodeMessage(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must be exactly 64 hex characters")
 }
