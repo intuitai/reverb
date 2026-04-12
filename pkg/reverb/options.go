@@ -3,8 +3,8 @@ package reverb
 import (
 	"log/slog"
 
-	"github.com/org/reverb/pkg/cdc"
-	"github.com/org/reverb/pkg/metrics"
+	"github.com/nobelk/reverb/pkg/cdc"
+	"github.com/nobelk/reverb/pkg/metrics"
 )
 
 // Option is a functional option for configuring a Client.

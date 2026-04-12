@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/org/reverb/pkg/cdc"
+	"github.com/nobelk/reverb/pkg/cdc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

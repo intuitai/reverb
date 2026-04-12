@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/org/reverb/pkg/store"
+	"github.com/nobelk/reverb/pkg/store"
 )
 
 // EntryBuilder provides a fluent API for constructing CacheEntry values in tests.

@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/org/reverb/internal/testutil"
-	"github.com/org/reverb/pkg/store"
+	"github.com/nobelk/reverb/internal/testutil"
+	"github.com/nobelk/reverb/pkg/store"
 )
 
 // RunStoreConformance runs the full conformance suite against any Store implementation.

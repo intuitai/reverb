@@ -1,4 +1,4 @@
-module github.com/org/reverb
+module github.com/nobelk/reverb
 
 go 1.25.0
 

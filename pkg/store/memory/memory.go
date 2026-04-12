@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/org/reverb/pkg/store"
+	"github.com/nobelk/reverb/pkg/store"
 )
 
 // Store is an in-memory store. All maps are protected by a single RWMutex

@@ -792,7 +792,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/org/reverb/pkg/reverb"
+    "github.com/nobelk/reverb/pkg/reverb"
 )
 
 func main() {
@@ -977,7 +977,7 @@ The protobuf service definition mirrors the HTTP API.
 
 syntax = "proto3";
 package reverb.v1;
-option go_package = "github.com/org/reverb/pkg/server/proto";
+option go_package = "github.com/nobelk/reverb/pkg/server/proto";
 
 service ReverbService {
   rpc Lookup(LookupRequest) returns (LookupResponse);

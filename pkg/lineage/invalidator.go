@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/org/reverb/pkg/store"
-	"github.com/org/reverb/pkg/vector"
+	"github.com/nobelk/reverb/pkg/store"
+	"github.com/nobelk/reverb/pkg/vector"
 )
 
 // ChangeEvent represents a source document that has changed.

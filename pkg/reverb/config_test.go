@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/org/reverb/pkg/reverb"
+	"github.com/nobelk/reverb/pkg/reverb"
 )
 
 func TestConfig_Validate_Valid(t *testing.T) {

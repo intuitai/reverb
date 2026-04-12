@@ -12,11 +12,11 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 
-	"github.com/org/reverb/pkg/embedding/fake"
-	"github.com/org/reverb/pkg/reverb"
-	"github.com/org/reverb/pkg/server"
-	"github.com/org/reverb/pkg/store/memory"
-	"github.com/org/reverb/pkg/vector/flat"
+	"github.com/nobelk/reverb/pkg/embedding/fake"
+	"github.com/nobelk/reverb/pkg/reverb"
+	"github.com/nobelk/reverb/pkg/server"
+	"github.com/nobelk/reverb/pkg/store/memory"
+	"github.com/nobelk/reverb/pkg/vector/flat"
 )
 
 const bufSize = 1 << 20 // 1 MB

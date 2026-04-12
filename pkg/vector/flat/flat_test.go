@@ -3,9 +3,9 @@ package flat_test
 import (
 	"testing"
 
-	"github.com/org/reverb/pkg/vector"
-	"github.com/org/reverb/pkg/vector/conformance"
-	"github.com/org/reverb/pkg/vector/flat"
+	"github.com/nobelk/reverb/pkg/vector"
+	"github.com/nobelk/reverb/pkg/vector/conformance"
+	"github.com/nobelk/reverb/pkg/vector/flat"
 )
 
 func TestFlatIndexConformance(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"go.opentelemetry.io/otel/trace/noop"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/org/reverb/pkg/metrics"
+	"github.com/nobelk/reverb/pkg/metrics"
 )
 
 func TestTracer_StartLookupSpan(t *testing.T) {

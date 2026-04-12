@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/org/reverb/pkg/vector"
-	"github.com/org/reverb/pkg/vector/conformance"
-	"github.com/org/reverb/pkg/vector/hnsw"
+	"github.com/nobelk/reverb/pkg/vector"
+	"github.com/nobelk/reverb/pkg/vector/conformance"
+	"github.com/nobelk/reverb/pkg/vector/hnsw"
 )
 
 func TestHNSWIndexConformance(t *testing.T) {

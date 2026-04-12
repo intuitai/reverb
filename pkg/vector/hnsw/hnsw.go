@@ -9,7 +9,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/org/reverb/pkg/vector"
+	"github.com/nobelk/reverb/pkg/vector"
 )
 
 // Config holds HNSW algorithm parameters.

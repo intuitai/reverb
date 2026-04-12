@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/org/reverb/pkg/embedding"
-	"github.com/org/reverb/pkg/store"
-	"github.com/org/reverb/pkg/vector"
+	"github.com/nobelk/reverb/pkg/embedding"
+	"github.com/nobelk/reverb/pkg/store"
+	"github.com/nobelk/reverb/pkg/vector"
 )
 
 // Clock abstracts time for testability.

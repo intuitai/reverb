@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/org/reverb/pkg/vector"
+	"github.com/nobelk/reverb/pkg/vector"
 )
 
 // RunVectorIndexConformance runs the full conformance suite against any Index implementation.

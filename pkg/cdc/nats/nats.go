@@ -10,7 +10,7 @@ import (
 
 	natsclient "github.com/nats-io/nats.go"
 
-	"github.com/org/reverb/pkg/cdc"
+	"github.com/nobelk/reverb/pkg/cdc"
 )
 
 // defaultSubject is the NATS subject subscribed to if none is specified.

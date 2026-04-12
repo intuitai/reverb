@@ -36,6 +36,7 @@ go.work.sum
 
 # bin
 bin/
+bin/*
 
 # Editor/IDE
  .idea/

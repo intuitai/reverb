@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package reverb.v1;
 
-option go_package = "github.com/org/reverb/pkg/server/proto";
+option go_package = "github.com/nobelk/reverb/pkg/server/proto";
 
 // ReverbService provides semantic response caching with knowledge-aware invalidation.
 service ReverbService {

@@ -12,8 +12,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/org/reverb/pkg/reverb"
-	"github.com/org/reverb/pkg/store"
+	"github.com/nobelk/reverb/pkg/reverb"
+	"github.com/nobelk/reverb/pkg/store"
 )
 
 // --- Service description ----------------------------------------------------

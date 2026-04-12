@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/org/reverb/pkg/store"
+	"github.com/nobelk/reverb/pkg/store"
 )
 
 // Index tracks the mapping from source documents to cache entries.

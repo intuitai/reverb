@@ -3,8 +3,8 @@ package badger
 import (
 	"testing"
 
-	"github.com/org/reverb/pkg/store"
-	"github.com/org/reverb/pkg/store/conformance"
+	"github.com/nobelk/reverb/pkg/store"
+	"github.com/nobelk/reverb/pkg/store/conformance"
 )
 
 func TestBadgerConformance(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-const tracerName = "github.com/org/reverb"
+const tracerName = "github.com/nobelk/reverb"
 
 // Tracer wraps an OpenTelemetry tracer with Reverb-specific span helpers.
 type Tracer struct {

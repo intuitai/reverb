@@ -8,7 +8,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/org/reverb/pkg/embedding"
+	"github.com/nobelk/reverb/pkg/embedding"
 )
 
 // Compile-time check that Provider implements embedding.Provider.

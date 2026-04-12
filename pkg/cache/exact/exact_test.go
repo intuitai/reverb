@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/org/reverb/internal/testutil"
-	"github.com/org/reverb/pkg/cache/exact"
-	"github.com/org/reverb/pkg/store/memory"
+	"github.com/nobelk/reverb/internal/testutil"
+	"github.com/nobelk/reverb/pkg/cache/exact"
+	"github.com/nobelk/reverb/pkg/store/memory"
 )
 
 func TestExact_PutAndLookup(t *testing.T) {

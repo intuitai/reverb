@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/org/reverb/pkg/reverb"
-	"github.com/org/reverb/pkg/store"
+	"github.com/nobelk/reverb/pkg/reverb"
+	"github.com/nobelk/reverb/pkg/store"
 )
 
 // maxRequestBodySize limits the size of incoming request bodies to 1MB.

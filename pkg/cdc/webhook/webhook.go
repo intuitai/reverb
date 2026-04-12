@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/org/reverb/pkg/cdc"
+	"github.com/nobelk/reverb/pkg/cdc"
 )
 
 // Config holds webhook listener configuration.

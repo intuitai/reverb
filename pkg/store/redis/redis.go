@@ -9,7 +9,7 @@ import (
 	"time"
 
 	goredis "github.com/redis/go-redis/v9"
-	"github.com/org/reverb/pkg/store"
+	"github.com/nobelk/reverb/pkg/store"
 )
 
 // incrementHitScript atomically reads the entry JSON, increments HitCount,

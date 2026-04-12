@@ -9,7 +9,7 @@ import (
 	"time"
 
 	badgerdb "github.com/dgraph-io/badger/v4"
-	"github.com/org/reverb/pkg/store"
+	"github.com/nobelk/reverb/pkg/store"
 )
 
 const (

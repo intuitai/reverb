@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/org/reverb/pkg/cdc"
+	"github.com/nobelk/reverb/pkg/cdc"
 )
 
 // HashFunc computes a content hash for the given source ID.

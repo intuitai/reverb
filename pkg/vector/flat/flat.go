@@ -6,7 +6,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/org/reverb/pkg/vector"
+	"github.com/nobelk/reverb/pkg/vector"
 )
 
 // Index is a brute-force linear scan vector index.
