@@ -15,6 +15,7 @@ import (
 	"github.com/nobelk/reverb/pkg/embedding/fake"
 	"github.com/nobelk/reverb/pkg/reverb"
 	"github.com/nobelk/reverb/pkg/server"
+	pb "github.com/nobelk/reverb/pkg/server/proto"
 	"github.com/nobelk/reverb/pkg/store/memory"
 	"github.com/nobelk/reverb/pkg/vector/flat"
 )
@@ -65,7 +66,7 @@ func setupGRPCServer(t *testing.T) (*server.GRPCServer, *grpc.ClientConn) {
 }
 
 // callStore is a helper that stores an entry via the gRPC server directly.
-func callStore(t *testing.T, grpcSrv *server.GRPCServer, req *server.StoreRequest) *server.StoreResponse {
+func callStore(t *testing.T, grpcSrv *server.GRPCServer, req *pb.StoreRequest) *pb.StoreResponse {
 	t.Helper()
 	resp, err := grpcSrv.Store(context.Background(), req)
 	require.NoError(t, err)
@@ -76,44 +77,44 @@ func TestGRPC_Lookup_Hit(t *testing.T) {
 	grpcSrv, _ := setupGRPCServer(t)
 
 	// Store first.
-	callStore(t, grpcSrv, &server.StoreRequest{
+	callStore(t, grpcSrv, &pb.StoreRequest{
 		Namespace: "ns",
 		Prompt:    "What is Go?",
-		ModelID:   "gpt-4",
+		ModelId:   "gpt-4",
 		Response:  "Go is a language.",
 	})
 
 	// Lookup the same prompt.
-	resp, err := grpcSrv.Lookup(context.Background(), &server.LookupRequest{
+	resp, err := grpcSrv.Lookup(context.Background(), &pb.LookupRequest{
 		Namespace: "ns",
 		Prompt:    "What is Go?",
-		ModelID:   "gpt-4",
+		ModelId:   "gpt-4",
 	})
 	require.NoError(t, err)
-	assert.True(t, resp.Hit)
-	assert.NotEmpty(t, resp.Tier)
-	assert.NotNil(t, resp.Entry)
+	assert.True(t, resp.GetHit())
+	assert.NotEmpty(t, resp.GetTier())
+	assert.NotNil(t, resp.GetEntry())
 }
 
 func TestGRPC_Lookup_Miss(t *testing.T) {
 	grpcSrv, _ := setupGRPCServer(t)
 
-	resp, err := grpcSrv.Lookup(context.Background(), &server.LookupRequest{
+	resp, err := grpcSrv.Lookup(context.Background(), &pb.LookupRequest{
 		Namespace: "ns",
 		Prompt:    "never stored",
-		ModelID:   "gpt-4",
+		ModelId:   "gpt-4",
 	})
 	require.NoError(t, err)
-	assert.False(t, resp.Hit)
-	assert.Nil(t, resp.Entry)
+	assert.False(t, resp.GetHit())
+	assert.Nil(t, resp.GetEntry())
 }
 
 func TestGRPC_Lookup_MissingNamespace(t *testing.T) {
 	grpcSrv, _ := setupGRPCServer(t)
 
-	_, err := grpcSrv.Lookup(context.Background(), &server.LookupRequest{
+	_, err := grpcSrv.Lookup(context.Background(), &pb.LookupRequest{
 		Prompt:  "hello",
-		ModelID: "gpt-4",
+		ModelId: "gpt-4",
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "namespace")
@@ -122,7 +123,7 @@ func TestGRPC_Lookup_MissingNamespace(t *testing.T) {
 func TestGRPC_Lookup_MissingPrompt(t *testing.T) {
 	grpcSrv, _ := setupGRPCServer(t)
 
-	_, err := grpcSrv.Lookup(context.Background(), &server.LookupRequest{
+	_, err := grpcSrv.Lookup(context.Background(), &pb.LookupRequest{
 		Namespace: "ns",
 	})
 	require.Error(t, err)
@@ -132,15 +133,15 @@ func TestGRPC_Lookup_MissingPrompt(t *testing.T) {
 func TestGRPC_Store_Success(t *testing.T) {
 	grpcSrv, _ := setupGRPCServer(t)
 
-	resp, err := grpcSrv.Store(context.Background(), &server.StoreRequest{
+	resp, err := grpcSrv.Store(context.Background(), &pb.StoreRequest{
 		Namespace: "ns",
 		Prompt:    "What is Go?",
-		ModelID:   "gpt-4",
+		ModelId:   "gpt-4",
 		Response:  "Go is a language.",
 	})
 	require.NoError(t, err)
-	assert.NotEmpty(t, resp.ID)
-	assert.NotZero(t, resp.CreatedAtUnix)
+	assert.NotEmpty(t, resp.GetId())
+	assert.NotZero(t, resp.GetCreatedAtUnix())
 }
 
 func TestGRPC_Store_MissingFields(t *testing.T) {
@@ -148,22 +149,22 @@ func TestGRPC_Store_MissingFields(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		req     *server.StoreRequest
+		req     *pb.StoreRequest
 		wantErr string
 	}{
 		{
 			name:    "missing namespace",
-			req:     &server.StoreRequest{Prompt: "p", Response: "r"},
+			req:     &pb.StoreRequest{Prompt: "p", Response: "r"},
 			wantErr: "namespace",
 		},
 		{
 			name:    "missing prompt",
-			req:     &server.StoreRequest{Namespace: "ns", Response: "r"},
+			req:     &pb.StoreRequest{Namespace: "ns", Response: "r"},
 			wantErr: "prompt",
 		},
 		{
 			name:    "missing response",
-			req:     &server.StoreRequest{Namespace: "ns", Prompt: "p"},
+			req:     &pb.StoreRequest{Namespace: "ns", Prompt: "p"},
 			wantErr: "response",
 		},
 	}
@@ -181,30 +182,30 @@ func TestGRPC_Invalidate_Success(t *testing.T) {
 	grpcSrv, _ := setupGRPCServer(t)
 
 	// Store with a source.
-	callStore(t, grpcSrv, &server.StoreRequest{
+	callStore(t, grpcSrv, &pb.StoreRequest{
 		Namespace: "ns",
 		Prompt:    "What is Go?",
-		ModelID:   "gpt-4",
+		ModelId:   "gpt-4",
 		Response:  "Go is a language.",
-		Sources: []server.GRPCSourceRef{
+		Sources: []*pb.SourceRef{
 			{
-				SourceID:    "doc-1",
+				SourceId:    "doc-1",
 				ContentHash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 			},
 		},
 	})
 
-	resp, err := grpcSrv.Invalidate(context.Background(), &server.InvalidateRequest{
-		SourceID: "doc-1",
+	resp, err := grpcSrv.Invalidate(context.Background(), &pb.InvalidateRequest{
+		SourceId: "doc-1",
 	})
 	require.NoError(t, err)
-	assert.GreaterOrEqual(t, resp.InvalidatedCount, int32(1))
+	assert.GreaterOrEqual(t, resp.GetInvalidatedCount(), int32(1))
 }
 
 func TestGRPC_Invalidate_MissingSourceID(t *testing.T) {
 	grpcSrv, _ := setupGRPCServer(t)
 
-	_, err := grpcSrv.Invalidate(context.Background(), &server.InvalidateRequest{})
+	_, err := grpcSrv.Invalidate(context.Background(), &pb.InvalidateRequest{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "source_id")
 }
@@ -212,15 +213,15 @@ func TestGRPC_Invalidate_MissingSourceID(t *testing.T) {
 func TestGRPC_DeleteEntry_Success(t *testing.T) {
 	grpcSrv, _ := setupGRPCServer(t)
 
-	storeResp := callStore(t, grpcSrv, &server.StoreRequest{
+	storeResp := callStore(t, grpcSrv, &pb.StoreRequest{
 		Namespace: "ns",
 		Prompt:    "What is Go?",
-		ModelID:   "gpt-4",
+		ModelId:   "gpt-4",
 		Response:  "Go is a language.",
 	})
 
-	_, err := grpcSrv.DeleteEntry(context.Background(), &server.DeleteEntryRequest{
-		ID: storeResp.ID,
+	_, err := grpcSrv.DeleteEntry(context.Background(), &pb.DeleteEntryRequest{
+		Id: storeResp.GetId(),
 	})
 	require.NoError(t, err)
 }
@@ -228,7 +229,7 @@ func TestGRPC_DeleteEntry_Success(t *testing.T) {
 func TestGRPC_DeleteEntry_MissingID(t *testing.T) {
 	grpcSrv, _ := setupGRPCServer(t)
 
-	_, err := grpcSrv.DeleteEntry(context.Background(), &server.DeleteEntryRequest{})
+	_, err := grpcSrv.DeleteEntry(context.Background(), &pb.DeleteEntryRequest{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "id")
 }
@@ -237,19 +238,19 @@ func TestGRPC_GetStats(t *testing.T) {
 	grpcSrv, _ := setupGRPCServer(t)
 
 	// Store something to ensure non-trivial stats.
-	callStore(t, grpcSrv, &server.StoreRequest{
+	callStore(t, grpcSrv, &pb.StoreRequest{
 		Namespace: "ns",
 		Prompt:    "What is Go?",
-		ModelID:   "gpt-4",
+		ModelId:   "gpt-4",
 		Response:  "Go is a language.",
 	})
 
-	resp, err := grpcSrv.GetStats(context.Background(), &server.GetStatsRequest{})
+	resp, err := grpcSrv.GetStats(context.Background(), &pb.GetStatsRequest{})
 	require.NoError(t, err)
-	assert.GreaterOrEqual(t, resp.TotalEntries, int64(1))
+	assert.GreaterOrEqual(t, resp.GetTotalEntries(), int64(1))
 }
 
 func TestGRPC_ServiceDesc(t *testing.T) {
-	assert.Equal(t, "reverb.v1.ReverbService", server.ReverbServiceDesc.ServiceName)
-	assert.Len(t, server.ReverbServiceDesc.Methods, 5)
+	assert.Equal(t, "reverb.v1.ReverbService", pb.ReverbService_ServiceDesc.ServiceName)
+	assert.Len(t, pb.ReverbService_ServiceDesc.Methods, 5)
 }

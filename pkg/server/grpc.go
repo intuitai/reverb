@@ -14,218 +14,13 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/nobelk/reverb/pkg/reverb"
+	pb "github.com/nobelk/reverb/pkg/server/proto"
 	"github.com/nobelk/reverb/pkg/store"
 )
 
-// --- Service description ----------------------------------------------------
-
-// ReverbServiceDesc is the grpc.ServiceDesc for ReverbService.
-// It is registered manually so no protoc code generation is needed.
-var ReverbServiceDesc = grpc.ServiceDesc{
-	ServiceName: "reverb.v1.ReverbService",
-	HandlerType: (*ReverbServiceServer)(nil),
-	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "Lookup",
-			Handler:    _ReverbService_Lookup_Handler,
-		},
-		{
-			MethodName: "Store",
-			Handler:    _ReverbService_Store_Handler,
-		},
-		{
-			MethodName: "Invalidate",
-			Handler:    _ReverbService_Invalidate_Handler,
-		},
-		{
-			MethodName: "DeleteEntry",
-			Handler:    _ReverbService_DeleteEntry_Handler,
-		},
-		{
-			MethodName: "GetStats",
-			Handler:    _ReverbService_GetStats_Handler,
-		},
-	},
-	Streams: []grpc.StreamDesc{},
-}
-
-// --- Request / response types -----------------------------------------------
-
-// LookupRequest is the input for the Lookup RPC.
-type LookupRequest struct {
-	Namespace string
-	Prompt    string
-	ModelID   string
-}
-
-// LookupResponse is the output of the Lookup RPC.
-type LookupResponse struct {
-	Hit        bool
-	Tier       string
-	Similarity float32
-	Entry      *GRPCCacheEntry
-}
-
-// GRPCCacheEntry carries a cache entry over gRPC.
-type GRPCCacheEntry struct {
-	ID           string
-	CreatedAtUnix int64
-	ExpiresAtUnix int64
-	Namespace    string
-	Prompt       string
-	ModelID      string
-	Response     string
-	ResponseMeta map[string]string
-	Sources      []GRPCSourceRef
-	HitCount     int64
-}
-
-// GRPCSourceRef carries a source reference over gRPC.
-type GRPCSourceRef struct {
-	SourceID    string
-	ContentHash string
-}
-
-// StoreRequest is the input for the Store RPC.
-type StoreRequest struct {
-	Namespace    string
-	Prompt       string
-	ModelID      string
-	Response     string
-	ResponseMeta map[string]string
-	Sources      []GRPCSourceRef
-	TTLSeconds   int32
-}
-
-// StoreResponse is the output of the Store RPC.
-type StoreResponse struct {
-	ID            string
-	CreatedAtUnix int64
-}
-
-// InvalidateRequest is the input for the Invalidate RPC.
-type InvalidateRequest struct {
-	SourceID string
-}
-
-// InvalidateResponse is the output of the Invalidate RPC.
-type InvalidateResponse struct {
-	InvalidatedCount int32
-}
-
-// DeleteEntryRequest is the input for the DeleteEntry RPC.
-type DeleteEntryRequest struct {
-	ID string
-}
-
-// DeleteEntryResponse is the output of the DeleteEntry RPC.
-type DeleteEntryResponse struct{}
-
-// GetStatsRequest is the input for the GetStats RPC.
-type GetStatsRequest struct{}
-
-// GetStatsResponse is the output of the GetStats RPC.
-type GetStatsResponse struct {
-	TotalEntries       int64
-	Namespaces         []string
-	ExactHitsTotal     int64
-	SemanticHitsTotal  int64
-	MissesTotal        int64
-	InvalidationsTotal int64
-}
-
-// --- Service interface -------------------------------------------------------
-
-// ReverbServiceServer is the interface that must be implemented by a gRPC server.
-type ReverbServiceServer interface {
-	Lookup(ctx context.Context, req *LookupRequest) (*LookupResponse, error)
-	Store(ctx context.Context, req *StoreRequest) (*StoreResponse, error)
-	Invalidate(ctx context.Context, req *InvalidateRequest) (*InvalidateResponse, error)
-	DeleteEntry(ctx context.Context, req *DeleteEntryRequest) (*DeleteEntryResponse, error)
-	GetStats(ctx context.Context, req *GetStatsRequest) (*GetStatsResponse, error)
-}
-
-// --- Method handlers --------------------------------------------------------
-
-func _ReverbService_Lookup_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
-	in := new(LookupRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ReverbServiceServer).Lookup(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{Server: srv, FullMethod: "/reverb.v1.ReverbService/Lookup"}
-	handler := func(ctx context.Context, req any) (any, error) {
-		return srv.(ReverbServiceServer).Lookup(ctx, req.(*LookupRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ReverbService_Store_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
-	in := new(StoreRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ReverbServiceServer).Store(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{Server: srv, FullMethod: "/reverb.v1.ReverbService/Store"}
-	handler := func(ctx context.Context, req any) (any, error) {
-		return srv.(ReverbServiceServer).Store(ctx, req.(*StoreRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ReverbService_Invalidate_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
-	in := new(InvalidateRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ReverbServiceServer).Invalidate(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{Server: srv, FullMethod: "/reverb.v1.ReverbService/Invalidate"}
-	handler := func(ctx context.Context, req any) (any, error) {
-		return srv.(ReverbServiceServer).Invalidate(ctx, req.(*InvalidateRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ReverbService_DeleteEntry_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
-	in := new(DeleteEntryRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ReverbServiceServer).DeleteEntry(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{Server: srv, FullMethod: "/reverb.v1.ReverbService/DeleteEntry"}
-	handler := func(ctx context.Context, req any) (any, error) {
-		return srv.(ReverbServiceServer).DeleteEntry(ctx, req.(*DeleteEntryRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ReverbService_GetStats_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
-	in := new(GetStatsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ReverbServiceServer).GetStats(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{Server: srv, FullMethod: "/reverb.v1.ReverbService/GetStats"}
-	handler := func(ctx context.Context, req any) (any, error) {
-		return srv.(ReverbServiceServer).GetStats(ctx, req.(*GetStatsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-// --- GRPCServer -------------------------------------------------------------
-
 // GRPCServer wraps a reverb.Client and exposes it via gRPC.
 type GRPCServer struct {
+	pb.UnimplementedReverbServiceServer
 	client *reverb.Client
 	server *grpc.Server
 }
@@ -235,7 +30,7 @@ func NewGRPCServer(client *reverb.Client, opts ...grpc.ServerOption) *GRPCServer
 	s := &GRPCServer{client: client}
 	opts = append(opts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 	s.server = grpc.NewServer(opts...)
-	s.server.RegisterService(&ReverbServiceDesc, s)
+	pb.RegisterReverbServiceServer(s.server, s)
 	return s
 }
 
@@ -282,61 +77,61 @@ func (s *GRPCServer) Start(ctx context.Context, addr string) error {
 
 // --- ReverbServiceServer implementation -------------------------------------
 
-func (s *GRPCServer) Lookup(ctx context.Context, req *LookupRequest) (*LookupResponse, error) {
-	if req.Namespace == "" {
+func (s *GRPCServer) Lookup(ctx context.Context, req *pb.LookupRequest) (*pb.LookupResponse, error) {
+	if req.GetNamespace() == "" {
 		return nil, status.Error(codes.InvalidArgument, "namespace is required")
 	}
-	if req.Prompt == "" {
+	if req.GetPrompt() == "" {
 		return nil, status.Error(codes.InvalidArgument, "prompt is required")
 	}
 
 	result, err := s.client.Lookup(ctx, reverb.LookupRequest{
-		Namespace: req.Namespace,
-		Prompt:    req.Prompt,
-		ModelID:   req.ModelID,
+		Namespace: req.GetNamespace(),
+		Prompt:    req.GetPrompt(),
+		ModelID:   req.GetModelId(),
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "lookup failed: %v", err)
 	}
 
-	resp := &LookupResponse{
+	resp := &pb.LookupResponse{
 		Hit:        result.Hit,
 		Tier:       result.Tier,
 		Similarity: result.Similarity,
 	}
 	if result.Entry != nil {
-		resp.Entry = toCacheEntryGRPC(result.Entry)
+		resp.Entry = toCacheEntryProto(result.Entry)
 	}
 	return resp, nil
 }
 
-func (s *GRPCServer) Store(ctx context.Context, req *StoreRequest) (*StoreResponse, error) {
-	if req.Namespace == "" {
+func (s *GRPCServer) Store(ctx context.Context, req *pb.StoreRequest) (*pb.StoreResponse, error) {
+	if req.GetNamespace() == "" {
 		return nil, status.Error(codes.InvalidArgument, "namespace is required")
 	}
-	if req.Prompt == "" {
+	if req.GetPrompt() == "" {
 		return nil, status.Error(codes.InvalidArgument, "prompt is required")
 	}
-	if req.Response == "" {
+	if req.GetResponse() == "" {
 		return nil, status.Error(codes.InvalidArgument, "response is required")
 	}
 
-	sources, err := convertGRPCSources(req.Sources)
+	sources, err := convertProtoSources(req.GetSources())
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	var ttl time.Duration
-	if req.TTLSeconds > 0 {
-		ttl = time.Duration(req.TTLSeconds) * time.Second
+	if req.GetTtlSeconds() > 0 {
+		ttl = time.Duration(req.GetTtlSeconds()) * time.Second
 	}
 
 	entry, err := s.client.Store(ctx, reverb.StoreRequest{
-		Namespace:    req.Namespace,
-		Prompt:       req.Prompt,
-		ModelID:      req.ModelID,
-		Response:     req.Response,
-		ResponseMeta: req.ResponseMeta,
+		Namespace:    req.GetNamespace(),
+		Prompt:       req.GetPrompt(),
+		ModelID:      req.GetModelId(),
+		Response:     req.GetResponse(),
+		ResponseMeta: req.GetResponseMeta(),
 		Sources:      sources,
 		TTL:          ttl,
 	})
@@ -344,44 +139,44 @@ func (s *GRPCServer) Store(ctx context.Context, req *StoreRequest) (*StoreRespon
 		return nil, status.Errorf(codes.Internal, "store failed: %v", err)
 	}
 
-	return &StoreResponse{
-		ID:            entry.ID,
+	return &pb.StoreResponse{
+		Id:            entry.ID,
 		CreatedAtUnix: entry.CreatedAt.Unix(),
 	}, nil
 }
 
-func (s *GRPCServer) Invalidate(ctx context.Context, req *InvalidateRequest) (*InvalidateResponse, error) {
-	if req.SourceID == "" {
+func (s *GRPCServer) Invalidate(ctx context.Context, req *pb.InvalidateRequest) (*pb.InvalidateResponse, error) {
+	if req.GetSourceId() == "" {
 		return nil, status.Error(codes.InvalidArgument, "source_id is required")
 	}
 
-	count, err := s.client.Invalidate(ctx, req.SourceID)
+	count, err := s.client.Invalidate(ctx, req.GetSourceId())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "invalidate failed: %v", err)
 	}
 
-	return &InvalidateResponse{InvalidatedCount: int32(count)}, nil
+	return &pb.InvalidateResponse{InvalidatedCount: int32(count)}, nil
 }
 
-func (s *GRPCServer) DeleteEntry(ctx context.Context, req *DeleteEntryRequest) (*DeleteEntryResponse, error) {
-	if req.ID == "" {
+func (s *GRPCServer) DeleteEntry(ctx context.Context, req *pb.DeleteEntryRequest) (*pb.DeleteEntryResponse, error) {
+	if req.GetId() == "" {
 		return nil, status.Error(codes.InvalidArgument, "id is required")
 	}
 
-	if err := s.client.InvalidateEntry(ctx, req.ID); err != nil {
+	if err := s.client.InvalidateEntry(ctx, req.GetId()); err != nil {
 		return nil, status.Errorf(codes.Internal, "delete entry failed: %v", err)
 	}
 
-	return &DeleteEntryResponse{}, nil
+	return &pb.DeleteEntryResponse{}, nil
 }
 
-func (s *GRPCServer) GetStats(ctx context.Context, _ *GetStatsRequest) (*GetStatsResponse, error) {
+func (s *GRPCServer) GetStats(ctx context.Context, _ *pb.GetStatsRequest) (*pb.GetStatsResponse, error) {
 	stats, err := s.client.Stats(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "stats failed: %v", err)
 	}
 
-	return &GetStatsResponse{
+	return &pb.GetStatsResponse{
 		TotalEntries:       stats.TotalEntries,
 		Namespaces:         stats.Namespaces,
 		ExactHitsTotal:     stats.ExactHitsTotal,
@@ -393,22 +188,22 @@ func (s *GRPCServer) GetStats(ctx context.Context, _ *GetStatsRequest) (*GetStat
 
 // --- helpers ----------------------------------------------------------------
 
-func toCacheEntryGRPC(e *store.CacheEntry) *GRPCCacheEntry {
-	sources := make([]GRPCSourceRef, len(e.SourceHashes))
+func toCacheEntryProto(e *store.CacheEntry) *pb.CacheEntry {
+	sources := make([]*pb.SourceRef, len(e.SourceHashes))
 	for i, s := range e.SourceHashes {
-		sources[i] = GRPCSourceRef{
-			SourceID:    s.SourceID,
+		sources[i] = &pb.SourceRef{
+			SourceId:    s.SourceID,
 			ContentHash: hex.EncodeToString(s.ContentHash[:]),
 		}
 	}
 
-	return &GRPCCacheEntry{
-		ID:            e.ID,
+	return &pb.CacheEntry{
+		Id:            e.ID,
 		CreatedAtUnix: e.CreatedAt.Unix(),
 		ExpiresAtUnix: e.ExpiresAt.Unix(),
 		Namespace:     e.Namespace,
 		Prompt:        e.PromptText,
-		ModelID:       e.ModelID,
+		ModelId:       e.ModelID,
 		Response:      e.ResponseText,
 		ResponseMeta:  e.ResponseMeta,
 		Sources:       sources,
@@ -416,20 +211,20 @@ func toCacheEntryGRPC(e *store.CacheEntry) *GRPCCacheEntry {
 	}
 }
 
-func convertGRPCSources(grpcSources []GRPCSourceRef) ([]store.SourceRef, error) {
-	if len(grpcSources) == 0 {
+func convertProtoSources(pbSources []*pb.SourceRef) ([]store.SourceRef, error) {
+	if len(pbSources) == 0 {
 		return nil, nil
 	}
-	refs := make([]store.SourceRef, len(grpcSources))
-	for i, gs := range grpcSources {
-		refs[i].SourceID = gs.SourceID
-		if gs.ContentHash != "" {
-			decoded, err := hex.DecodeString(strings.TrimPrefix(gs.ContentHash, "0x"))
+	refs := make([]store.SourceRef, len(pbSources))
+	for i, ps := range pbSources {
+		refs[i].SourceID = ps.GetSourceId()
+		if ps.GetContentHash() != "" {
+			decoded, err := hex.DecodeString(strings.TrimPrefix(ps.GetContentHash(), "0x"))
 			if err != nil {
-				return nil, fmt.Errorf("invalid content_hash for source %q: %w", gs.SourceID, err)
+				return nil, fmt.Errorf("invalid content_hash for source %q: %w", ps.GetSourceId(), err)
 			}
 			if len(decoded) != 32 {
-				return nil, fmt.Errorf("content_hash for source %q must be 32 bytes (got %d)", gs.SourceID, len(decoded))
+				return nil, fmt.Errorf("content_hash for source %q must be 32 bytes (got %d)", ps.GetSourceId(), len(decoded))
 			}
 			copy(refs[i].ContentHash[:], decoded)
 		}

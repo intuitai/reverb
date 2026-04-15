@@ -1,4 +1,4 @@
-.PHONY: build test test-unit test-integration test-all lint bench docker docker-test clean
+.PHONY: build test test-unit test-integration test-all lint bench docker docker-test clean proto-gen
 
 # --- Build ---
 build:
@@ -51,6 +51,13 @@ coverage:
 	go test -coverprofile=coverage.out -covermode=atomic ./pkg/... ./internal/...
 	go tool cover -func=coverage.out
 	go tool cover -html=coverage.out -o coverage.html
+
+# --- Proto generation ---
+proto-gen:
+	protoc \
+		--go_out=. --go_opt=paths=source_relative \
+		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+		pkg/server/proto/reverb.proto
 
 # --- Cleanup ---
 clean:
