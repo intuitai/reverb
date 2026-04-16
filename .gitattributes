@@ -1,0 +1,31 @@
+# Normalize line endings for source and config files.
+*.go         text eol=lf
+*.md         text eol=lf
+*.yaml       text eol=lf
+*.yml        text eol=lf
+*.proto      text eol=lf
+*.sh         text eol=lf
+Dockerfile*  text eol=lf
+Makefile     text eol=lf
+
+# Binaries — never diff, never try to merge. If one of these is ever
+# committed by accident, at least it won't explode code review.
+*.exe        binary
+*.dll        binary
+*.so         binary
+*.dylib      binary
+*.test       binary
+
+# Reverb-specific: these are compiled outputs of cmd/reverb and the
+# example programs. They must not live in the repo — if one appears
+# in a diff, that is a bug. Marked binary so `git diff` shows only
+# "Binary files differ" rather than attempting to render 30MB of
+# Mach-O as text.
+/reverb           binary
+/basic            binary
+/semantic-cache   binary
+/stale-knowledge  binary
+bin/reverb        binary
+
+# GitHub's "generated" / "vendored" hints — collapse noise in PRs.
+go.sum           linguist-generated=true

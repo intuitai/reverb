@@ -24,11 +24,22 @@ profile.cov
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
-stale-knowledge
-
 # Go workspace file
 go.work
 go.work.sum
+
+# Compiled binaries left in the repo root by `go build` without -o.
+# Build outputs belong in bin/ (see Makefile) or a release artifact, not git.
+/reverb
+/basic
+/semantic-cache
+/stale-knowledge
+
+# Accidental Node artifacts — this is a Go project. If Node tooling is
+# ever added intentionally, remove these lines.
+/package.json
+/package-lock.json
+/node_modules/
 
 # env file
 .env
