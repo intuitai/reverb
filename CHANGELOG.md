@@ -22,7 +22,21 @@ Section conventions:
 
 ## [Unreleased]
 
-_No changes yet._
+### Added
+
+- `reverb.WithRebuildVectorIndex(bool)` option and
+  `store.rebuild_vector_index_on_startup` YAML knob. When enabled, `reverb.New`
+  scans the configured store at boot and re-adds every non-expired entry's
+  embedding to the in-memory vector index before returning, closing the
+  semantic-tier cold-start window on durable backends.
+- RUNBOOK.md §Persistence & Restart Behavior documenting Badger durability
+  (`SyncWrites: false` default), Redis persistence expectations (AOF vs RDB),
+  and the vector-index rebuild trade-off.
+- `TestBadgerSurvivesClose` — asserts all entries and secondary indices
+  (hash, lineage, stats) survive a close/reopen cycle on the same directory.
+- Restart test suite at `pkg/reverb/restart_test.go` covering the cold-index
+  default path, eager-rebuild reconciliation, skip behavior for expired and
+  embedding-missing entries, and the full Badger restart cycle.
 
 ---
 

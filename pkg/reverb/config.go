@@ -53,6 +53,11 @@ type StoreConfig struct {
 	RedisPassword string `yaml:"redis_password"`
 	RedisDB       int    `yaml:"redis_db"`
 	RedisPrefix   string `yaml:"redis_prefix"`
+
+	// RebuildVectorIndexOnStartup, when true, scans the store at boot and
+	// re-adds every non-expired entry's embedding to the vector index.
+	// See reverb.WithRebuildVectorIndex for trade-offs.
+	RebuildVectorIndexOnStartup bool `yaml:"rebuild_vector_index_on_startup"`
 }
 
 // VectorConfig holds vector index configuration.

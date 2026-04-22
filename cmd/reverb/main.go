@@ -106,6 +106,11 @@ func main() {
 
 	var reverbOpts []reverb.Option
 
+	if cfg.Store.RebuildVectorIndexOnStartup {
+		reverbOpts = append(reverbOpts, reverb.WithRebuildVectorIndex(true))
+		logger.Info("vector index rebuild on startup enabled", "store", cfg.Store.Backend)
+	}
+
 	// Start CDC listener if enabled
 	if cfg.CDC.Enabled {
 		listener, err := newCDCListener(cfg)

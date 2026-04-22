@@ -5,6 +5,7 @@ reference, see [`README.md`](README.md) and [`reverb-design-doc.md`](reverb-desi
 
 - [Deployment Modes](#deployment-modes)
 - [Configuration Reference](#configuration-reference)
+- [Persistence & Restart Behavior](#persistence--restart-behavior)
 - [Common Failure Modes](#common-failure-modes)
 - [Capacity & Performance Knobs](#capacity--performance-knobs)
 - [Debugging Workflow](#debugging-workflow)
@@ -89,6 +90,7 @@ This section highlights **production-critical settings only**.
 | `semantic_top_k` | `5` | Controls vector index fan-out; raising increases latency linearly. |
 | `scope_by_model` | `true` | **Keep `true`** in multi-model deployments. Turning off allows a `gpt-4o` entry to serve a `claude-opus-4-6` query. |
 | `store.backend` | `memory` | `memory` loses all state on restart. Use `redis` or `badger` in production. |
+| `store.rebuild_vector_index_on_startup` | `false` | Set `true` for durable stores when semantic hit-rate dips on restart are unacceptable. See [Persistence & Restart Behavior](#persistence--restart-behavior). |
 | `vector.backend` | `flat` | `flat` is O(n) and scans every entry — switch to `hnsw` above ~50K entries. |
 | `auth.enabled` | `false` | **Enable** on any internet-reachable deployment. API keys are hashed at boot; rotation requires a restart. |
 | `otel.enabled` | `false` | Enable to emit OTLP HTTP traces to your collector. |
@@ -113,6 +115,153 @@ overrides:
 
 A misconfiguration here causes the process to exit with code 1 at startup, not
 a runtime surprise — fail-fast is intentional.
+
+---
+
+## Persistence & Restart Behavior
+
+Reverb has two pieces of state with **different durability characteristics**:
+
+1. **The store** (`pkg/store`) holds cache entries, hash indices, and lineage
+   indices. `memory` is volatile; `badger` and `redis` are durable subject to
+   their own persistence configuration (detailed below).
+2. **The vector index** (`pkg/vector`) is **always in-memory-only** regardless
+   of which store backend is configured. `hnsw` and `flat` live entirely in
+   process heap. There is no on-disk representation.
+
+These are independent. A durable store + volatile vector index is the default,
+and it is the single most common source of operator surprise. This section
+makes the behavior explicit.
+
+### Durability per store backend
+
+| Backend | Survives clean shutdown? | Survives OS crash / power loss? | Notes |
+|---|---|---|---|
+| `memory` | **No** | **No** | Every restart is a cold start. |
+| `badger` | **Yes** (if `Close()` runs) | **Partial — tail of WAL may be lost** | Opens `badger.DefaultOptions`, which sets `SyncWrites: false`. Writes land in the value log via mmap but are not fsync'd per operation. A clean `client.Close()` flushes pending writes; a `kill -9` or power loss can drop the last few seconds of writes. Acceptable for a cache — not acceptable as a general-purpose database. |
+| `redis` | **Depends on Redis config** | **Depends on Redis config** | Reverb treats Redis as a pure backing store. Durability is whatever Redis is configured to provide — see below. |
+
+#### Badger specifics (`pkg/store/badger/badger.go:33`)
+
+- The process holds an **exclusive directory lock** for the lifetime of the
+  store. Two Reverb processes cannot share a Badger path. In Kubernetes, use a
+  `StatefulSet` with one `PersistentVolume` per replica.
+- `LSM` and value-log files live under the configured path. The directory must
+  be writable by the container UID (`appuser` in the production image).
+- Changing `embedding.dimensions` between runs is **not** caught by Badger —
+  the stored entries still load, but `hnsw.Index.Add` will reject every
+  mismatched vector at insert time. See [HNSW Dimension
+  Mismatch](#hnsw-dimension-mismatch).
+
+#### Redis specifics (`pkg/store/redis/redis.go`)
+
+Reverb writes three kinds of keys (`reverb:entry:*`, `reverb:hash:*`,
+`reverb:lineage:*`) and uses Lua `EVAL` scripts for atomic Put / IncrementHit.
+It does **not** configure Redis persistence — that's the operator's
+responsibility. For production, pick one:
+
+- **`appendonly yes`** (AOF, recommended): every write is logged and fsync'd
+  per `appendfsync` setting (`everysec` is the usual compromise). Matches
+  Badger's "lose at most a few seconds" profile.
+- **RDB snapshots only** (default in many images): a crash loses every write
+  since the last snapshot. Explicitly unsuitable for multi-tenant
+  deployments where "yesterday's cache was warm" is load-bearing.
+- **Neither** (`save ""` + no AOF): cache is effectively volatile; restarting
+  Redis is equivalent to `FLUSHALL`.
+
+Reverb does **not** detect Redis persistence config. If semantic hit rate
+mysteriously drops after a Redis restart, check `CONFIG GET appendonly` first.
+
+Reverb's Lua scripts assume a **single primary**. Redis Cluster routing is
+not supported — `EVAL` with multi-slot keys will fail.
+
+### Vector index: always cold on process start
+
+Both `flat.New` (`pkg/vector/flat/flat.go:23`) and `hnsw.New`
+(`pkg/vector/hnsw/hnsw.go:63`) initialize an empty map / graph. There is no
+serialization, no snapshot, no mmap. A freshly-started Reverb process **has
+no vectors in its index until one of two things happens**:
+
+1. A `Store()` call adds a new entry (and its freshly-computed embedding).
+2. `WithRebuildVectorIndex(true)` scans the store and re-adds existing
+   embeddings (see next section).
+
+During this warmup window, the exact tier (Tier 1) is fully functional — it
+reads from the store by prompt hash — but the semantic tier (Tier 2) returns
+misses. This is a silent behavior: the process is healthy, `/v1/stats`
+reports a normal hit rate on exact hits, and the degraded semantic path only
+shows up as a hit-rate regression relative to steady state.
+
+### Startup reconciliation options
+
+By default, nothing reconciles the store and the vector index at boot. Two
+modes are supported:
+
+| Mode | Config | Behavior | When to use |
+|---|---|---|---|
+| **Lazy (default)** | `store.rebuild_vector_index_on_startup: false` | The index warms as new entries are stored. Semantic hits degrade for minutes to hours depending on traffic. | Low-durability caches, memory store, dev. |
+| **Eager rebuild** | `store.rebuild_vector_index_on_startup: true` | `New()` scans every namespace and re-adds every non-expired entry's embedding before returning. Synchronous. Library callers can also pass `reverb.WithRebuildVectorIndex(true)`. | Durable stores (badger, redis) with semantic-hit-rate SLOs that cannot tolerate warmup latency. |
+
+Trade-offs of eager rebuild:
+
+- **Startup latency is O(N)** in the number of stored entries. At 10M entries
+  and ~1ms per `hnsw.Add`, expect ~3 hours. Size your readiness probe budget
+  accordingly or keep the eager mode off for cache sizes above ~100K.
+- **Failures fail the process.** If `store.Scan` or `vectorIndex.Add`
+  returns an error, `reverb.New` returns that error and the client is not
+  usable. This is deliberate — a partial index would silently serve a mix of
+  reconciled and cold semantic lookups.
+- **Expired entries are skipped** during the scan, so eager rebuild does not
+  re-index garbage the reaper is about to delete.
+- **Entries with `EmbeddingMissing: true`** (embedder failures at Store time)
+  are skipped — they never had a vector to begin with.
+- **Dimension mismatches are surfaced here first.** If `embedding.dimensions`
+  changed between runs, the first `vectorIndex.Add` fails and startup aborts.
+  The lazy path would instead silently reject every new write at runtime.
+
+### What's guaranteed across a restart
+
+Given a clean shutdown and a durable backend (badger, or redis with AOF):
+
+- **Exact-tier lookups** for previously-stored entries hit on first call.
+- **Lineage-based invalidation** (`POST /v1/invalidate`) works — the
+  `lineage:` keys are in the store.
+- **Hit counters** (`HitCount`, `LastHitAt`) are preserved.
+- **TTLs** are preserved; the expiry reaper picks up where it left off (the
+  reaper runs every 5 minutes and tolerates any delay).
+
+Given a clean shutdown but **lazy** reconciliation:
+
+- Semantic-tier lookups miss until the corresponding entry is re-stored.
+- Paraphrase-heavy namespaces will show a visible hit-rate dip for the
+  duration of warmup.
+
+Given an **unclean** shutdown (kill -9, OOM, power loss):
+
+- Badger with default `SyncWrites: false`: up to ~seconds of writes may be
+  lost.
+- Redis with AOF `everysec`: up to ~1 second of writes may be lost.
+- Redis with RDB only: writes since the last snapshot may be lost.
+
+For cache workloads, each of these is acceptable. For workloads where cache
+loss equals a cost-incident (expensive LLM calls, tight SLOs), enable
+`WithSyncWrites(true)` on Badger via a future option, or pick Redis AOF
+`always` — both trade write throughput for durability.
+
+### Operator checklist
+
+Before deploying to production:
+
+- [ ] `store.backend` is `badger` or `redis` (not `memory`).
+- [ ] For Redis: `CONFIG GET appendonly` returns `yes`.
+- [ ] For Badger: the mounted directory is on a volume that survives pod
+  restarts (not an `emptyDir`).
+- [ ] `store.rebuild_vector_index_on_startup` is set deliberately — either
+  `true` with a known cache size, or `false` with an understanding that
+  semantic hit rate will dip on restart.
+- [ ] Your readiness probe tolerates the rebuild duration if eager mode is on.
+- [ ] Graceful shutdown is wired (the standalone binary already handles
+  SIGINT / SIGTERM via `signal.NotifyContext`).
 
 ---
 
@@ -329,8 +478,10 @@ If hit rate is below expectation:
 
 ### Cold-start diagnosis
 
-After a restart with an in-memory or flat backend, the vector index is
-empty. Expected hit rate during warm-up: near zero. Compare
+After any restart the vector index is empty — regardless of store backend.
+See [Persistence & Restart Behavior](#persistence--restart-behavior) for the
+full story and the `store.rebuild_vector_index_on_startup` knob. Expected
+semantic hit rate during lazy warm-up: near zero. Compare
 `reverb_entries_total` against historical steady-state.
 
 ### Staging reproduction
@@ -373,12 +524,13 @@ These are **non-destructive** and can be rolled forward/back in place:
 - **Memory store:** every restart is a cold start. Accept a temporary hit-rate
   drop, or drain traffic before cycling.
 - **Redis store:** restarts are hot; new process reconnects and resumes
-  serving. HNSW graph is rebuilt lazily as new entries are inserted — existing
-  Redis entries are not auto-indexed at startup. Expect a degraded semantic
-  hit rate immediately post-restart until the index rewarms. For Redis-backed
-  deployments this is the most common operator surprise.
+  serving. By default the vector index rebuilds lazily (existing Redis
+  entries are not auto-indexed at startup) — set
+  `store.rebuild_vector_index_on_startup: true` to reindex eagerly. See
+  [Persistence & Restart Behavior](#persistence--restart-behavior).
 - **Badger store:** cycle replicas one at a time — the directory lock
-  prohibits parallel startup against the same volume.
+  prohibits parallel startup against the same volume. Same vector-index
+  rebuild trade-off as Redis.
 
 ### Rollback
 

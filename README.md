@@ -376,6 +376,11 @@ store:
   redis_db: 0
   redis_prefix: "reverb:"
   badger_path: "/tmp/reverb-badger"
+  # On startup, re-add every persisted entry's embedding to the (in-memory)
+  # vector index. Off by default — the vector index warms lazily. Turn on
+  # for durable stores where semantic hit-rate dips on restart are a concern.
+  # See RUNBOOK.md §Persistence & Restart Behavior.
+  rebuild_vector_index_on_startup: false
 
 # Embedding provider: "fake" (default), "openai", or "ollama"
 embedding:

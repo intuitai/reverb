@@ -47,3 +47,20 @@ func WithTracer(tracer *metrics.Tracer) Option {
 		c.tracer = tracer
 	}
 }
+
+// WithRebuildVectorIndex, when true, causes New to scan the store and re-add
+// every non-expired entry's embedding to the vector index before returning.
+//
+// Reverb's vector index (flat, hnsw) is in-memory only. When the store is a
+// durable backend (badger, redis) that outlives the process, restarts leave
+// the index empty until new Store calls re-populate it — exact-tier lookups
+// still hit, but semantic lookups silently miss until warmup completes.
+// Enabling this option closes that gap at the cost of an O(N) scan at
+// startup. Use with memory-backed stores is harmless but pointless.
+//
+// If the scan fails, New returns an error and the client is not usable.
+func WithRebuildVectorIndex(rebuild bool) Option {
+	return func(c *Client) {
+		c.rebuildOnStart = rebuild
+	}
+}

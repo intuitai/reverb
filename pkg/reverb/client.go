@@ -2,6 +2,7 @@ package reverb
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sync"
 	"sync/atomic"
@@ -86,6 +87,12 @@ type Client struct {
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 	closed atomic.Bool
+
+	// rebuildOnStart, when true, causes New to scan the store and re-add
+	// every non-expired entry's embedding to the vector index before any
+	// background goroutine or caller observes the client. Set via
+	// WithRebuildVectorIndex.
+	rebuildOnStart bool
 }
 
 // New creates a new Reverb client with the given configuration and pre-built dependencies.
@@ -134,6 +141,17 @@ func New(cfg Config, embedder embedding.Provider, s store.Store, vi vector.Index
 	c.semanticTier = semanticCache
 	c.invalidator = inv
 	c.lineageIdx = lineageIdx
+
+	if c.rebuildOnStart {
+		added, skipped, err := c.rebuildVectorIndex(ctx)
+		if err != nil {
+			cancel()
+			return nil, fmt.Errorf("rebuild vector index: %w", err)
+		}
+		c.logger.Info("vector index rebuilt from store",
+			"added", added,
+			"skipped", skipped)
+	}
 
 	c.wg.Add(1)
 	go c.expiryReaper()
@@ -276,6 +294,50 @@ func (c *Client) reapExpired() {
 			c.logger.Info("reaper: deleted expired entries", "namespace", ns, "count", len(expired))
 		}
 	}
+}
+
+// rebuildVectorIndex scans every namespace in the store and re-adds each
+// non-expired entry's embedding to the in-memory vector index. Entries with
+// no embedding (EmbeddingMissing or empty vector) and expired entries are
+// skipped. Returns (added, skipped, error).
+//
+// This is invoked synchronously from New when WithRebuildVectorIndex is set,
+// before any background goroutine or user call can observe the client. Cost
+// is O(N) in the number of stored entries; operators should only opt in when
+// the store is backed by a durable backend (badger, redis) that outlives the
+// process.
+func (c *Client) rebuildVectorIndex(ctx context.Context) (added, skipped int, err error) {
+	stats, err := c.store.Stats(ctx)
+	if err != nil {
+		return 0, 0, fmt.Errorf("stats: %w", err)
+	}
+	now := c.clock.Now()
+	for _, ns := range stats.Namespaces {
+		scanErr := c.store.Scan(ctx, ns, func(entry *store.CacheEntry) bool {
+			if entry.EmbeddingMissing || len(entry.Embedding) == 0 {
+				skipped++
+				return true
+			}
+			if !entry.ExpiresAt.IsZero() && now.After(entry.ExpiresAt) {
+				skipped++
+				return true
+			}
+			if addErr := c.vectorIndex.Add(ctx, entry.ID, entry.Embedding); addErr != nil {
+				c.logger.Warn("rebuild: vector add failed",
+					"entry_id", entry.ID,
+					"namespace", ns,
+					"error", addErr)
+				skipped++
+				return true
+			}
+			added++
+			return true
+		})
+		if scanErr != nil {
+			return added, skipped, fmt.Errorf("scan namespace %q: %w", ns, scanErr)
+		}
+	}
+	return added, skipped, nil
 }
 
 // metricsUpdater recomputes the rolling hit rate every 60 seconds.
