@@ -1,0 +1,71 @@
+name: Benchmarks
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'benchmark/**'
+      - 'pkg/cache/**'
+      - 'pkg/normalize/**'
+      - 'pkg/lineage/**'
+      - 'pkg/reverb/**'
+      - 'pkg/vector/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/benchmarks.yml'
+  schedule:
+    # Mondays 12:00 UTC — catch drift from dependency updates landing on main.
+    - cron: '0 12 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality-budget:
+    name: Quality Budget (false-positive, paraphrase, invalidation)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Run evaluation suite
+        run: |
+          go test -v -count=1 -timeout 300s -run '^TestEval_' ./benchmark/... \
+            | tee eval-results.txt
+      - name: Upload evaluation results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results
+          path: eval-results.txt
+          retention-days: 90
+
+  latency-baselines:
+    name: Latency Baselines
+    runs-on: ubuntu-latest
+    needs: quality-budget
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Run latency benchmarks
+        # Stderr is silenced so per-iteration INFO logs from Store don't
+        # interleave with the benchmark output captured to the artifact.
+        run: |
+          go test -bench='BenchmarkLookup_(ExactHit|SemanticHit|Miss)(_ScaledIndex)?$' \
+            -benchmem -benchtime=2s -run='^$' ./benchmark/... 2>/dev/null \
+            | grep -E '^(Benchmark|goos|goarch|pkg|cpu|PASS|ok|FAIL)' \
+            | tee benchmark-results.txt
+          echo
+          echo "=== Captured baseline numbers ==="
+          cat benchmark-results.txt
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark-results.txt
+          retention-days: 90

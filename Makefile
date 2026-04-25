@@ -1,4 +1,4 @@
-.PHONY: build test test-unit test-integration test-all lint bench docker docker-test clean proto-gen
+.PHONY: build test test-unit test-integration test-all lint bench bench-quality bench-baseline docker docker-test clean proto-gen
 
 # --- Build ---
 build:
@@ -50,6 +50,14 @@ bench:
 bench-quality:
 	go test -v -count=1 -timeout 300s -run '^TestEval_' ./benchmark/...
 	go test -bench=. -benchmem -benchtime=3s -run='^$$' ./benchmark/...
+
+# --- Published latency baselines (the exact numbers in BENCHMARKS.md) ---
+# Stderr is silenced so per-Store INFO logs don't interleave with the
+# benchmark output. The eval suite (bench-quality) covers Store + logs.
+bench-baseline:
+	@go test -bench='BenchmarkLookup_(ExactHit|SemanticHit|Miss)(_ScaledIndex)?$$' \
+		-benchmem -benchtime=2s -run='^$$' ./benchmark/... 2>/dev/null \
+		| grep -E '^(Benchmark|goos|goarch|pkg|cpu|PASS|ok|FAIL)'
 
 # --- Coverage ---
 coverage:

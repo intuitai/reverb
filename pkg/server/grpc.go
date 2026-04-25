@@ -14,6 +14,8 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/nobelk/reverb/pkg/auth"
+	"github.com/nobelk/reverb/pkg/limiter"
+	"github.com/nobelk/reverb/pkg/metrics"
 	"github.com/nobelk/reverb/pkg/reverb"
 	pb "github.com/nobelk/reverb/pkg/server/proto"
 	"github.com/nobelk/reverb/pkg/store"
@@ -22,22 +24,86 @@ import (
 // GRPCServer wraps a reverb.Client and exposes it via gRPC.
 type GRPCServer struct {
 	pb.UnimplementedReverbServiceServer
-	client *reverb.Client
-	server *grpc.Server
+	client      *reverb.Client
+	server      *grpc.Server
+	rateLimiter *limiter.Registry
+	prom        *metrics.PrometheusCollector
+}
+
+// GRPCServerOption configures a GRPCServer at construction time.
+type GRPCServerOption func(*GRPCServer)
+
+// WithGRPCRateLimiter installs a per-tenant rate-limit interceptor that
+// rejects over-rate requests with codes.ResourceExhausted. Pass nil to
+// disable.
+func WithGRPCRateLimiter(reg *limiter.Registry) GRPCServerOption {
+	return func(s *GRPCServer) {
+		s.rateLimiter = reg
+	}
+}
+
+// WithGRPCMetricsCollector wires the Prometheus collector so the rate-limit
+// interceptor can record rejection counters.
+func WithGRPCMetricsCollector(pc *metrics.PrometheusCollector) GRPCServerOption {
+	return func(s *GRPCServer) {
+		s.prom = pc
+	}
 }
 
 // NewGRPCServer creates a new GRPCServer wired to the given Reverb client.
 // When authn is non-nil, all RPCs require a valid Bearer token in the
 // "authorization" metadata key.
-func NewGRPCServer(client *reverb.Client, authn *auth.Authenticator, opts ...grpc.ServerOption) *GRPCServer {
+func NewGRPCServer(client *reverb.Client, authn *auth.Authenticator, opts ...GRPCServerOption) *GRPCServer {
 	s := &GRPCServer{client: client}
-	if authn != nil {
-		opts = append(opts, grpc.ChainUnaryInterceptor(auth.UnaryServerInterceptor(authn)))
+	for _, opt := range opts {
+		opt(s)
 	}
-	opts = append(opts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
-	s.server = grpc.NewServer(opts...)
+
+	// Interceptor order matters: auth runs first so the rate limiter sees
+	// the tenant ID. ChainUnaryInterceptor invokes interceptors in the
+	// order given.
+	var (
+		interceptors []grpc.UnaryServerInterceptor
+		grpcOpts     []grpc.ServerOption
+	)
+	if authn != nil {
+		interceptors = append(interceptors, auth.UnaryServerInterceptor(authn))
+	}
+	if s.rateLimiter != nil {
+		interceptors = append(interceptors, rateLimitUnaryInterceptor(s.rateLimiter, s.prom))
+	}
+	if len(interceptors) > 0 {
+		grpcOpts = append(grpcOpts, grpc.ChainUnaryInterceptor(interceptors...))
+	}
+
+	grpcOpts = append(grpcOpts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
+	s.server = grpc.NewServer(grpcOpts...)
 	pb.RegisterReverbServiceServer(s.server, s)
 	return s
+}
+
+// rateLimitUnaryInterceptor enforces a per-tenant token-bucket rate limit on
+// every unary RPC. Over-rate requests get codes.ResourceExhausted, which
+// gRPC clients already know to retry with backoff.
+func rateLimitUnaryInterceptor(reg *limiter.Registry, pc *metrics.PrometheusCollector) grpc.UnaryServerInterceptor {
+	return func(
+		ctx context.Context,
+		req any,
+		_ *grpc.UnaryServerInfo,
+		handler grpc.UnaryHandler,
+	) (any, error) {
+		tenantKey := limiter.AnonymousTenant
+		if t, ok := auth.TenantFromContext(ctx); ok {
+			tenantKey = t.ID
+		}
+		if ok, _ := reg.Allow(tenantKey); !ok {
+			if pc != nil {
+				pc.RejectedRequestsTotal.WithLabelValues("grpc", "rate_limit").Inc()
+			}
+			return nil, status.Error(codes.ResourceExhausted, "rate limit exceeded")
+		}
+		return handler(ctx, req)
+	}
 }
 
 // Serve starts the gRPC server on the given listener. It blocks until the

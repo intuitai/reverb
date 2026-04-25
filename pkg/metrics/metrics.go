@@ -64,6 +64,11 @@ type PrometheusCollector struct {
 	EmbeddingErrorsTotal      *prometheus.CounterVec
 	VectorSearchDurationSeconds prometheus.Histogram
 	HitRate                   *prometheus.GaugeVec
+
+	// Backpressure / overload signals.
+	RejectedRequestsTotal *prometheus.CounterVec // labels: protocol (http|grpc), reason (rate_limit|overload)
+	EmbeddingInFlight     prometheus.Gauge
+	EmbeddingQueueDepth   prometheus.Gauge
 }
 
 // NewPrometheusCollector creates and registers all Reverb Prometheus metrics.
@@ -127,6 +132,21 @@ func NewPrometheusCollector(reg prometheus.Registerer) (*PrometheusCollector, er
 			Name: "reverb_hit_rate",
 			Help: "Rolling cache hit rate per namespace.",
 		}, []string{"namespace"}),
+
+		RejectedRequestsTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "reverb_rejected_requests_total",
+			Help: "Requests rejected by the protection layer (rate limit or overload).",
+		}, []string{"protocol", "reason"}),
+
+		EmbeddingInFlight: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "reverb_embedding_in_flight",
+			Help: "Number of embedding-provider calls currently in flight.",
+		}),
+
+		EmbeddingQueueDepth: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "reverb_embedding_queue_depth",
+			Help: "Number of callers waiting for an embedding-provider slot.",
+		}),
 	}
 
 	collectors := []prometheus.Collector{
@@ -140,6 +160,9 @@ func NewPrometheusCollector(reg prometheus.Registerer) (*PrometheusCollector, er
 		pc.EmbeddingErrorsTotal,
 		pc.VectorSearchDurationSeconds,
 		pc.HitRate,
+		pc.RejectedRequestsTotal,
+		pc.EmbeddingInFlight,
+		pc.EmbeddingQueueDepth,
 	}
 
 	for _, col := range collectors {

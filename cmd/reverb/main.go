@@ -28,6 +28,8 @@ import (
 	"github.com/nobelk/reverb/pkg/embedding/fake"
 	"github.com/nobelk/reverb/pkg/embedding/ollama"
 	"github.com/nobelk/reverb/pkg/embedding/openai"
+	"github.com/nobelk/reverb/pkg/embedding/throttled"
+	"github.com/nobelk/reverb/pkg/limiter"
 	"github.com/nobelk/reverb/pkg/metrics"
 	"github.com/nobelk/reverb/pkg/reverb"
 	"github.com/nobelk/reverb/pkg/server"
@@ -101,6 +103,23 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Build the embedding-pipeline concurrency cap before the Prometheus
+	// collector so we can wire metric callbacks once both exist. The
+	// throttled wrapper itself is applied after the collector is built so
+	// it can record in-flight / queue-depth gauges.
+	embedConcurrency := limiter.NewConcurrencyLimiter(
+		cfg.Concurrency.MaxInFlight,
+		cfg.Concurrency.MaxQueued,
+		cfg.Concurrency.MaxQueueWait,
+	)
+	if embedConcurrency != nil {
+		logger.Info("embedding concurrency cap enabled",
+			"max_in_flight", cfg.Concurrency.MaxInFlight,
+			"max_queued", cfg.Concurrency.MaxQueued,
+			"max_queue_wait", cfg.Concurrency.MaxQueueWait,
+		)
+	}
+
 	vi, err := newVectorIndex(cfg)
 	if err != nil {
 		logger.Error("failed to create vector index", "error", err)
@@ -126,6 +145,24 @@ func main() {
 		os.Exit(1)
 	}
 	reverbOpts = append(reverbOpts, reverb.WithPrometheusCollector(promCollector))
+
+	// Wrap the embedder with the concurrency cap once both pieces are
+	// available. throttled.New short-circuits when the limiter is nil, so
+	// this is safe to call unconditionally.
+	embedder = throttled.New(embedder, embedConcurrency, promCollector)
+
+	// Build per-tenant rate limiter from config. NewRegistry returns nil when
+	// disabled (or when the configured rate/burst is non-positive); the
+	// downstream middleware/interceptor short-circuit on nil so we don't
+	// branch here.
+	var rateLimitReg *limiter.Registry
+	if cfg.RateLimit.Enabled {
+		rateLimitReg = limiter.NewRegistry(cfg.RateLimit.RequestsPerSecond, cfg.RateLimit.Burst, nil)
+		logger.Info("per-tenant rate limiting enabled",
+			"requests_per_second", cfg.RateLimit.RequestsPerSecond,
+			"burst", cfg.RateLimit.Burst,
+		)
+	}
 
 	// Start CDC listener if enabled
 	if cfg.CDC.Enabled {
@@ -168,6 +205,8 @@ func main() {
 
 	httpOpts := []server.HTTPServerOption{
 		server.WithReadinessCheck(storeReadiness(s)),
+		server.WithRateLimiter(rateLimitReg),
+		server.WithMetricsCollector(promCollector),
 	}
 	// When no dedicated metrics listener is configured, expose /metrics on the
 	// main HTTP mux. Auth middleware bypasses /metrics so scrapers don't need
@@ -198,7 +237,10 @@ func main() {
 
 	// Start gRPC server if configured
 	if cfg.Server.GRPCAddr != "" {
-		grpcSrv := server.NewGRPCServer(client, authn)
+		grpcSrv := server.NewGRPCServer(client, authn,
+			server.WithGRPCRateLimiter(rateLimitReg),
+			server.WithGRPCMetricsCollector(promCollector),
+		)
 		go func() {
 			logger.Info("starting gRPC server", "addr", cfg.Server.GRPCAddr)
 			if err := grpcSrv.Start(ctx, cfg.Server.GRPCAddr); err != nil && ctx.Err() == nil {

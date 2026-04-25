@@ -334,6 +334,24 @@ make bench
 | Conformance suites | 2 | Store + VectorIndex shared suites |
 | Test packages | 19 | With tests |
 
+## Benchmarks & quality budgets
+
+Reverb publishes reference latency baselines and an enforced false-positive
+budget. See [BENCHMARKS.md](BENCHMARKS.md) for the full tables, methodology,
+and the regression workflow that gates them.
+
+| | Reference number |
+|---|---|
+| Exact-hit lookup (any N) | ~3.3 µs |
+| Semantic-hit lookup at N=10K (flat index) | ~870 µs |
+| Miss lookup at N=10K (flat index) | ~860 µs |
+| False-positive budget (UnrelatedPairs at threshold 0.95) | **0 / 10**, enforced in CI |
+
+```bash
+make bench-quality   # quality evals + full latency benchmarks
+make bench-baseline  # just the published latency tables
+```
+
 ## Configuration
 
 ```go

@@ -24,14 +24,16 @@ type Config struct {
 	SemanticTopK        int           `yaml:"semantic_top_k"`
 	ScopeByModel        bool          `yaml:"scope_by_model"`
 
-	Embedding EmbeddingConfig `yaml:"embedding"`
-	Store     StoreConfig     `yaml:"store"`
-	Vector    VectorConfig    `yaml:"vector"`
-	CDC       CDCConfig       `yaml:"cdc"`
-	Server    ServerConfig    `yaml:"server"`
-	Auth      AuthConfig      `yaml:"auth"`
-	Metrics   MetricsConfig   `yaml:"metrics"`
-	OTel      OTelConfig      `yaml:"otel"`
+	Embedding   EmbeddingConfig   `yaml:"embedding"`
+	Store       StoreConfig       `yaml:"store"`
+	Vector      VectorConfig      `yaml:"vector"`
+	CDC         CDCConfig         `yaml:"cdc"`
+	Server      ServerConfig      `yaml:"server"`
+	Auth        AuthConfig        `yaml:"auth"`
+	Metrics     MetricsConfig     `yaml:"metrics"`
+	OTel        OTelConfig        `yaml:"otel"`
+	RateLimit   RateLimitConfig   `yaml:"rate_limit"`
+	Concurrency ConcurrencyConfig `yaml:"concurrency"`
 
 	// Clock — injectable for tests (defaults to real time)
 	Clock Clock `yaml:"-"`
@@ -105,6 +107,33 @@ type Tenant struct {
 	APIKeys []string `yaml:"api_keys"`
 }
 
+// RateLimitConfig holds per-tenant request rate-limit configuration.
+//
+// When Enabled, each tenant gets an independent token bucket of size Burst
+// that refills at RequestsPerSecond tokens/sec. Requests beyond the bucket
+// are rejected with HTTP 429 / gRPC ResourceExhausted and a Retry-After hint.
+// When auth is disabled, all unauthenticated callers share a single
+// "_anonymous" bucket — set conservatively for that case.
+type RateLimitConfig struct {
+	Enabled           bool    `yaml:"enabled"`
+	RequestsPerSecond float64 `yaml:"requests_per_second"`
+	Burst             int     `yaml:"burst"`
+}
+
+// ConcurrencyConfig holds the embedding-pipeline concurrency cap.
+//
+// MaxInFlight bounds the number of concurrent embedding-provider calls.
+// MaxQueued is the depth of the bounded waiter queue once in-flight is
+// saturated; callers beyond that are rejected immediately. MaxQueueWait is
+// the longest a queued caller will wait before giving up (translated into
+// HTTP 503 / gRPC Unavailable upstream). When MaxInFlight is 0 the cap is
+// disabled and the embedder is used directly.
+type ConcurrencyConfig struct {
+	MaxInFlight  int           `yaml:"max_in_flight"`
+	MaxQueued    int           `yaml:"max_queued"`
+	MaxQueueWait time.Duration `yaml:"max_queue_wait"`
+}
+
 // OTelConfig holds OpenTelemetry configuration.
 type OTelConfig struct {
 	Enabled     bool   `yaml:"enabled"`
@@ -140,6 +169,23 @@ func (c *Config) Validate() error {
 	}
 	if c.DefaultTTL < 0 {
 		return errors.New("default_ttl must be non-negative")
+	}
+	if c.RateLimit.Enabled {
+		if c.RateLimit.RequestsPerSecond <= 0 {
+			return errors.New("rate_limit.requests_per_second must be > 0 when rate_limit is enabled")
+		}
+		if c.RateLimit.Burst <= 0 {
+			return errors.New("rate_limit.burst must be > 0 when rate_limit is enabled")
+		}
+	}
+	if c.Concurrency.MaxInFlight < 0 {
+		return errors.New("concurrency.max_in_flight must be >= 0")
+	}
+	if c.Concurrency.MaxQueued < 0 {
+		return errors.New("concurrency.max_queued must be >= 0")
+	}
+	if c.Concurrency.MaxQueueWait < 0 {
+		return errors.New("concurrency.max_queue_wait must be non-negative")
 	}
 	if c.Auth.Enabled {
 		if len(c.Auth.Tenants) == 0 {

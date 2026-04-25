@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,6 +17,8 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/nobelk/reverb/pkg/auth"
+	"github.com/nobelk/reverb/pkg/limiter"
+	"github.com/nobelk/reverb/pkg/metrics"
 	"github.com/nobelk/reverb/pkg/reverb"
 	"github.com/nobelk/reverb/pkg/store"
 )
@@ -33,10 +36,12 @@ type ReadinessChecker func(ctx context.Context) error
 type HTTPServer struct {
 	client      *reverb.Client
 	mux         *http.ServeMux
-	handler     http.Handler // mux wrapped in optional auth middleware
+	handler     http.Handler // mux wrapped in rate limit + optional auth middleware
 	server      *http.Server
 	logger      *slog.Logger
 	readyChecks []ReadinessChecker
+	rateLimiter *limiter.Registry
+	prom        *metrics.PrometheusCollector
 }
 
 // HTTPServerOption configures an HTTPServer at construction time.
@@ -64,6 +69,24 @@ func WithReadinessCheck(check ReadinessChecker) HTTPServerOption {
 	}
 }
 
+// WithRateLimiter installs a per-tenant rate-limit middleware. Requests over
+// the configured rate are rejected with 429 and a Retry-After header. The
+// middleware skips /healthz, /readyz, and /metrics so probes and scrapes are
+// never throttled. Pass nil to disable.
+func WithRateLimiter(reg *limiter.Registry) HTTPServerOption {
+	return func(s *HTTPServer) {
+		s.rateLimiter = reg
+	}
+}
+
+// WithMetricsCollector wires the Prometheus collector so the rate-limit
+// middleware can record rejection counters.
+func WithMetricsCollector(pc *metrics.PrometheusCollector) HTTPServerOption {
+	return func(s *HTTPServer) {
+		s.prom = pc
+	}
+}
+
 // NewHTTPServer creates a new HTTPServer wired to the given Reverb client.
 // When authn is non-nil, all endpoints except /healthz, /readyz, and /metrics
 // require a valid Bearer token in the Authorization header.
@@ -71,21 +94,10 @@ func NewHTTPServer(client *reverb.Client, addr string, authn *auth.Authenticator
 	logger := slog.Default()
 	mux := http.NewServeMux()
 
-	var handler http.Handler = mux
-	if authn != nil {
-		handler = auth.HTTPMiddleware(authn)(mux)
-	}
-
 	s := &HTTPServer{
-		client:  client,
-		mux:     mux,
-		handler: handler,
-		logger:  logger,
-		server: &http.Server{
-			Addr:              addr,
-			Handler:           otelhttp.NewHandler(handler, "reverb-http"),
-			ReadHeaderTimeout: 10 * time.Second,
-		},
+		client: client,
+		mux:    mux,
+		logger: logger,
 	}
 
 	mux.HandleFunc("POST /v1/lookup", s.handleLookup)
@@ -100,7 +112,61 @@ func NewHTTPServer(client *reverb.Client, addr string, authn *auth.Authenticator
 		opt(s)
 	}
 
+	// Compose middleware chain after options so the rate limiter (and any
+	// other configurable middleware) is fully populated. Order matters:
+	// auth runs first so the rate limiter sees the tenant ID.
+	var handler http.Handler = mux
+	if s.rateLimiter != nil {
+		handler = rateLimitMiddleware(s.rateLimiter, s.prom)(handler)
+	}
+	if authn != nil {
+		handler = auth.HTTPMiddleware(authn)(handler)
+	}
+	s.handler = handler
+	s.server = &http.Server{
+		Addr:              addr,
+		Handler:           otelhttp.NewHandler(handler, "reverb-http"),
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+
 	return s
+}
+
+// rateLimitMiddleware enforces a per-tenant token-bucket rate limit. It runs
+// after the auth middleware so the tenant ID is already in the context. The
+// special paths /healthz, /readyz, and /metrics are never throttled — they
+// must remain answerable for probes and scrapers even when the service is
+// otherwise overloaded.
+func rateLimitMiddleware(reg *limiter.Registry, pc *metrics.PrometheusCollector) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/healthz", "/readyz", "/metrics":
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			tenantKey := limiter.AnonymousTenant
+			if t, ok := auth.TenantFromContext(r.Context()); ok {
+				tenantKey = t.ID
+			}
+
+			ok, retryAfter := reg.Allow(tenantKey)
+			if !ok {
+				if pc != nil {
+					pc.RejectedRequestsTotal.WithLabelValues("http", "rate_limit").Inc()
+				}
+				// Round Retry-After up to whole seconds per RFC 7231 — clients
+				// expect an integer count of seconds in the header. Always
+				// advertise at least 1 to avoid a client retry loop.
+				secs := max(int(retryAfter.Round(time.Second)/time.Second), 1)
+				w.Header().Set("Retry-After", strconv.Itoa(secs))
+				writeJSON(w, http.StatusTooManyRequests, errorResp{Error: "rate limit exceeded"})
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // ServeHTTP implements http.Handler so the server can be used with httptest.
